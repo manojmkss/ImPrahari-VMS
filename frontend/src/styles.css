@@ -2241,3 +2241,45 @@ tr:last-child td {
     animation: none !important;
   }
 }
+
+/* PTZ panel (full-screen tile) */
+.ptz-panel {
+  position: absolute;
+  right: 12px;
+  top: 48px;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  border-radius: 10px;
+  padding: 6px;
+  font-size: 12px;
+  user-select: none;
+  max-width: 220px;
+}
+.ptz-toggle { background: none; border: none; color: #fff; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+.ptz-body { display: grid; gap: 8px; margin-top: 4px; }
+.ptz-pad { display: grid; grid-template-columns: repeat(3, 40px); gap: 4px; justify-content: center; }
+.ptz-btn {
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: none;
+}
+.ptz-btn:active { background: var(--accent, #2f81f7); }
+.ptz-row { display: flex; gap: 4px; }
+.ptz-wide { flex: 1; font-size: 13px; }
+.ptz-speed { display: flex; gap: 6px; align-items: center; }
+.ptz-speed input { flex: 1; }
+.ptz-presets { display: flex; flex-wrap: wrap; gap: 4px; }
+.ptz-preset { display: inline-flex; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 12px; overflow: hidden; }
+.ptz-preset button { background: none; border: none; color: #fff; padding: 2px 8px; cursor: pointer; }
+.ptz-preset .ptz-x { padding: 2px 6px; opacity: 0.7; }
+.ptz-save { display: flex; gap: 4px; width: 100%; }
+.ptz-save input { flex: 1; min-width: 0; padding: 2px 6px; font-size: 12px; }
+.ptz-save button, .ptz-link { font-size: 12px; cursor: pointer; }
+.ptz-link { background: none; border: none; color: #9cc3ff; text-decoration: underline; padding: 0; }
+.ptz-error { color: #ffb4a9; }

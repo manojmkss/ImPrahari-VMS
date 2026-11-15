@@ -10,7 +10,7 @@ A companion app for a LightNVR server, for the things you do on a phone:
 Everything else (cameras, recording, AI, alert rules, users) is the NVR's own
 web settings, built into the app.
 
-**Status: 0.2.0** — all of the above is built. Unit tests and a replay of a
+**Status: 0.3.0** — all of the above is built. Unit tests and a replay of a
 real NVR playback session pass. It still needs testing on real phones before
 a release.
 
@@ -22,6 +22,24 @@ a release.
 | **Visits** | Like the web Visits page, with the same filters: **what** was seen (people, vehicles, animals, bags, other, motion only such as lights and shadows), **where** (a camera or a camera group), **who** (a person or strangers), over today, yesterday or 7 days. Tap a visit to play it from its start. |
 | **Security** | The mode now (Home / Away / Night / Off), who set it, and when the schedule changes it next. Admin accounts can switch it, optionally "keep until I change it". |
 | **Settings** | Turn on alerts, open the web settings (already signed in), sign out. |
+
+**Pinch to zoom** (up to 8×) works on:
+- the full-screen live view;
+- playback;
+- visit pictures (the ⤢ corner of a visit's picture, or a person's chip).
+
+Drag to look around while zoomed. Double-tap to zoom into a spot, or back
+out. A mini-map shows which part of the picture you're looking at. Live
+switches to the camera's main stream by itself while zoomed ("HD·auto"),
+because the sub stream is too small to zoom into.
+
+**PTZ** (cameras with motors, admin accounts): full-screen live → **PTZ**.
+- Hold an arrow or "Zoom ±" to move; it stops when you let go.
+- ⌂ goes to the camera's home position.
+- Saved views: tap one to go there, long-press to delete, "+ Save view" to
+  save where the camera points now.
+- If the phone loses its connection mid-move, the NVR stops the camera
+  within a second.
 
 **Playback.**
 - The scrub bar shows the day's recordings: drag it or tap a moment. You can pause, jump ±30 s, play at ½× to 8×, zoom (15 min to 24 h), or pick a date and time.

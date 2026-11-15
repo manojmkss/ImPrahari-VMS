@@ -9,6 +9,7 @@ import cv2
 
 from app.services.camera_gate import camera_gate
 from app.services.frame_bus import frame_bus
+from app.services import ptz_state
 from app.services.motion_detector import MotionDetector, MotionSample
 from app.services.status_tracker import heartbeat, mark_offline, mark_online
 from app.services.stream_stats import stream_stats
@@ -247,6 +248,22 @@ class StreamViewer:
                 frame_bus.set_raw(self.camera_id, frame, captured_at)
                 self.last_activity = self.last_frame_at = time.monotonic()
                 heartbeat(self.camera_id)
+
+                if ptz_state.moving(self.camera_id):
+                    # Turned or zoomed on purpose (PTZ): the whole picture
+                    # changes - neither motion nor tampering. End any open
+                    # event, and learn the new view once it has settled.
+                    if self._detector is not None:
+                        if self._detector.force_stop() and self.on_motion_stop:
+                            self._schedule(self.on_motion_stop())
+                        self._detector.reset(captured_at)
+                    if self._tamper is not None:
+                        self._tamper.relearn()
+                    now = time.monotonic()
+                    if now - last_live_at >= live_interval:
+                        last_live_at = now
+                        self._publish_live(frame)
+                    continue
 
                 if self._detector is not None:
                     sample = self._detector.process(frame, captured_at)

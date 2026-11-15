@@ -303,6 +303,8 @@ private fun VisitCard(
     val started = epoch(v.startedAt)
     val cams = v.cameraIds.orEmpty()
     var pick by remember { mutableStateOf(false) }
+    // A picture opened full screen (zoomable): path + caption.
+    var photo by remember { mutableStateOf<Pair<String, String>?>(null) }
     val play: (Int) -> Unit = { id -> onPlay(id, cameraNames[id] ?: "Camera $id", started - 3) }
     val version = URLEncoder.encode(v.reviewedAt ?: "", "UTF-8")
 
@@ -335,6 +337,22 @@ private fun VisitCard(
                                 modifier = Modifier.background(Color(0x99000000), CircleShape).padding(horizontal = 9.dp, vertical = 3.dp),
                             )
                         }
+                        // The picture plays the visit; this corner opens it big, to zoom into.
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(30.dp)
+                                .clickable {
+                                    photo = "/api/security/incidents/${v.id}/snapshot.jpg?v=$version" to fmt(started, zone, true)
+                                },
+                        ) {
+                            Text(
+                                "⤢",
+                                color = Color.White,
+                                modifier = Modifier.background(Color(0x99000000), RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),
+                            )
+                        }
                     }
                     Spacer(Modifier.width(10.dp))
                 }
@@ -360,7 +378,12 @@ private fun VisitCard(
             val people = v.people.orEmpty()
             if (people.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    people.forEachIndexed { n, p -> PersonChip(api, v.id, n, p, version) }
+                    people.forEachIndexed { n, p ->
+                        PersonChip(api, v.id, n, p, version, onOpen = { label ->
+                            // The person's whole main-stream frame.
+                            photo = "/api/security/incidents/${v.id}/people/$n.jpg?v=$version&full=true" to label
+                        })
+                    }
                 }
             } else if (!v.identities.isNullOrEmpty()) {
                 Text(v.identities.joinToString(", "), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
@@ -374,6 +397,7 @@ private fun VisitCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            photo?.let { (path, caption) -> PhotoViewer(api, path, caption, onDismiss = { photo = null }) }
             if (pick) {
                 Text("Play from ${fmt(started, zone, false)} on:", style = MaterialTheme.typography.labelMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -387,7 +411,7 @@ private fun VisitCard(
 }
 
 @Composable
-private fun PersonChip(api: ApiClient, visitId: Int, n: Int, p: VisitPerson, version: String) {
+private fun PersonChip(api: ApiClient, visitId: Int, n: Int, p: VisitPerson, version: String, onOpen: (String) -> Unit) {
     val (label, weight, style, color) = when (p.kind) {
         "known" -> Quad(p.name ?: "Known person", FontWeight.SemiBold, FontStyle.Normal, Color.Unspecified)
         "probable" -> Quad(p.name?.let { "possibly $it" } ?: "face unclear", FontWeight.Normal, FontStyle.Italic, Color.Unspecified)
@@ -397,6 +421,8 @@ private fun PersonChip(api: ApiClient, visitId: Int, n: Int, p: VisitPerson, ver
     Row(
         modifier = Modifier
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .then(if (p.photo) Modifier.clickable { onOpen(label) } else Modifier)
             .padding(start = 2.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

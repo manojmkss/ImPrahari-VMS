@@ -31,6 +31,7 @@ from app.api.routes import (
     kiosk,
     live,
     media,
+    ptz,
     push,
     recordings,
     remote_access,
@@ -196,6 +197,10 @@ async def lifespan(app: FastAPI):
 
     await live_hub.shutdown()
 
+    from app.services import ptz as ptz_service
+
+    await ptz_service.shutdown()
+
 
 app = FastAPI(title="LightNVR API", version="0.4.22", lifespan=lifespan)
 
@@ -223,6 +228,7 @@ app.include_router(backup.router)
 app.include_router(live.router)
 app.include_router(media.router)
 app.include_router(cameras.router)
+app.include_router(ptz.router)
 app.include_router(faces.router)
 app.include_router(push.router)
 app.include_router(recordings.router)

@@ -55,8 +55,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.lightnvr.companion.media.Feed
 import com.lightnvr.companion.media.LivePlayer
 import com.lightnvr.companion.media.PlaybackConnection
@@ -102,6 +100,7 @@ fun PlaybackScreen(
     var muted by rememberSaveable { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var playerError by remember { mutableStateOf<String?>(null) }
+    val zoom = rememberZoomState()
 
     var started by remember { mutableStateOf(false) }
     LifecycleStartEffect(Unit) {
@@ -237,18 +236,13 @@ fun PlaybackScreen(
         }
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        setShutterBackgroundColor(android.graphics.Color.BLACK)
-                        keepScreenOn = true
-                        this.player = player
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+            // Pinch to zoom into the recording (it's the main stream: full detail).
+            ZoomableBox(state = zoom, modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    factory = { ctx -> newPlayerView(ctx, zoomable = true).apply { this.player = player } },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
             val s = state
             val status = when {
                 playerError != null -> "Can't play this recording here ($playerError)"

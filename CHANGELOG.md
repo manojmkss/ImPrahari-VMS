@@ -6,6 +6,33 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **PTZ: turn and zoom cameras that have motors** (ONVIF). In a full-screen
+  live tile (web) or the app's live view, admin accounts get:
+  - a direction pad (hold to move) and a lens zoom;
+  - a speed setting;
+  - saved views (presets): go to one, save the current view, delete one;
+  - the camera's home position.
+
+  Cameras without motors, or added without an ONVIF address, show no
+  controls, and the API says why.
+- Safety: a move lasts under a second unless the button is still held.
+  - The camera is asked to stop by itself (ONVIF timeout), and the NVR stops
+    it too, so a phone that loses its connection mid-move never leaves a
+    camera turning.
+  - While a camera moves on purpose, motion detection and tamper detection
+    pause. They then learn the new view, so turning a camera doesn't raise
+    "camera moved" alerts or empty visits.
+- API: `GET /api/cameras/{id}/ptz`, `POST …/ptz/move`, `…/ptz/stop`,
+  `…/ptz/presets` (save), `…/ptz/presets/{token}/goto`, `DELETE
+  …/ptz/presets/{token}`, `…/ptz/home/goto`, `…/ptz/home/set`. Admin only.
+- **Android app 0.3:**
+  - pinch-zoom (up to 8×) on full-screen live, playback and visit pictures,
+    with drag to look around, double-tap to zoom in or out, and a mini-map;
+  - live switches to the camera's main stream by itself while zoomed;
+  - PTZ controls;
+  - connecting by IP, the browser's http address, or a Tailscale IP or name.
+
 ## [0.4.22] - 2026-11-15
 
 ### Added

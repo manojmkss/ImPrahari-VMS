@@ -1,3 +1,5 @@
+import { PtzPanel } from "./PtzPanel";
+import { useAuth } from "../context/AuthContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   authenticatedEndpoints,
@@ -124,6 +126,7 @@ type Gap = { kind: "none"; nextAt: number | null } | { kind: "error"; message: s
 
 export function CameraTile({ camera, quality = "sub", stat, endpoints = authenticatedEndpoints }: CameraTileProps) {
   const { fmtTime } = useSettings();
+  const { isAdmin } = useAuth();
   const tileRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<MediaPlayerHandle>(null);
 
@@ -636,6 +639,9 @@ export function CameraTile({ camera, quality = "sub", stat, endpoints = authenti
           </div>
         </div>
       )}
+
+      {/* PTZ: full screen, signed-in admin (never on the kiosk), camera with motors. */}
+      {isFullscreen && isAdmin && endpoints === authenticatedEndpoints && <PtzPanel cameraId={camera.id} />}
 
       {isFullscreen && <div className="tile-fs-hint">Press Esc or double-click to exit fullscreen</div>}
     </div>

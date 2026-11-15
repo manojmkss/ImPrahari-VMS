@@ -1,5 +1,6 @@
 package com.lightnvr.companion.ui
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -60,6 +61,8 @@ fun LiveVideo(
     onSignedOut: () -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    /** Draw into a TextureView so the caller can pinch-zoom it (full screen). */
+    zoomable: Boolean = false,
     onLive: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -157,15 +160,7 @@ fun LiveVideo(
 
     Box(modifier = modifier.background(Color.Black)) {
         AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    setShutterBackgroundColor(android.graphics.Color.BLACK)
-                    keepScreenOn = true
-                    this.player = player
-                }
-            },
+            factory = { ctx -> newPlayerView(ctx, zoomable).apply { this.player = player } },
             modifier = Modifier.fillMaxSize(),
         )
         if (!firstFrame) {
@@ -199,3 +194,20 @@ fun LiveVideo(
         }
     }
 }
+
+/** A player view: SurfaceView-backed (cheapest), or TextureView-backed when
+ *  it will be scaled for pinch-zoom. Inflated without a parent on purpose:
+ *  the AndroidView that hosts it sets its layout. */
+@SuppressLint("InflateParams")
+@androidx.annotation.OptIn(UnstableApi::class)
+fun newPlayerView(context: android.content.Context, zoomable: Boolean): PlayerView =
+    if (zoomable) {
+        android.view.LayoutInflater.from(context).inflate(com.lightnvr.companion.R.layout.player_texture, null) as PlayerView
+    } else {
+        PlayerView(context).apply {
+            useController = false
+            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+            setShutterBackgroundColor(android.graphics.Color.BLACK)
+            keepScreenOn = true
+        }
+    }

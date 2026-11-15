@@ -126,6 +126,27 @@ private data class SubscribeRequest(val endpoint: String, val keys: PushKeys)
 @Serializable
 private data class UnsubscribeRequest(val endpoint: String)
 
+/** What a camera's PTZ can do (admins only; null for a viewer). */
+@Serializable
+data class PtzInfo(
+    val supported: Boolean,
+    val reason: String? = null,
+    @SerialName("pan_tilt") val panTilt: Boolean = false,
+    val zoom: Boolean = false,
+    val presets: Boolean = false,
+    val home: Boolean = false,
+    @SerialName("presets_list") val presetsList: List<PtzPreset> = emptyList(),
+)
+
+@Serializable
+data class PtzPreset(val token: String, val name: String)
+
+@Serializable
+private data class PtzMoveRequest(val pan: Double, val tilt: Double, val zoom: Double)
+
+@Serializable
+private data class PtzPresetRequest(val name: String)
+
 @Serializable
 data class PushTestResult(val success: Boolean, val message: String = "")
 
@@ -221,7 +242,10 @@ class ApiClient(private val store: SessionStore) {
     private suspend fun authed(path: String, method: String = "GET", body: String? = null): Response {
         suspend fun call(token: String): Response = withContext(Dispatchers.IO) {
             val builder = Request.Builder().url("${base()}$path").header("Authorization", "Bearer $token")
-            if (method != "GET") builder.method(method, (body ?: "{}").toRequestBody(jsonType))
+            when {
+                method == "DELETE" && body == null -> builder.delete()
+                method != "GET" -> builder.method(method, (body ?: "{}").toRequestBody(jsonType))
+            }
             http.newCall(builder.build()).execute()
         }
         val first = call(accessToken())
@@ -331,6 +355,44 @@ class ApiClient(private val store: SessionStore) {
             response.use { r -> if (r.isSuccessful) r.body?.bytes() else null }
         }
     }
+
+    /** The camera's PTZ, or null when this account may not turn cameras (viewer). */
+    suspend fun ptz(cameraId: Int): PtzInfo? = try {
+        getJson("Couldn't load PTZ", "/api/cameras/$cameraId/ptz")
+    } catch (e: ApiException) {
+        if (e.code == 403) null else throw e
+    }
+
+    /** Hold to move: lasts under a second - send again while held. Speeds -1..1. */
+    suspend fun ptzMove(cameraId: Int, pan: Double, tilt: Double, zoom: Double) {
+        val body = json.encodeToString(PtzMoveRequest(pan, tilt, zoom))
+        call("Couldn't move the camera", "/api/cameras/$cameraId/ptz/move", "POST", body) { }
+    }
+
+    suspend fun ptzStop(cameraId: Int) {
+        call("Couldn't stop the camera", "/api/cameras/$cameraId/ptz/stop", "POST", null) { }
+    }
+
+    suspend fun ptzGotoPreset(cameraId: Int, token: String) {
+        call("Couldn't go to that view", "/api/cameras/$cameraId/ptz/presets/${enc(token)}/goto", "POST", null) { }
+    }
+
+    suspend fun ptzSavePreset(cameraId: Int, name: String): PtzPreset {
+        val body = json.encodeToString(PtzPresetRequest(name))
+        return call("Couldn't save the view", "/api/cameras/$cameraId/ptz/presets", "POST", body) {
+            json.decodeFromString<PtzPreset>(it)
+        }
+    }
+
+    suspend fun ptzRemovePreset(cameraId: Int, token: String) {
+        call("Couldn't delete the view", "/api/cameras/$cameraId/ptz/presets/${enc(token)}", "DELETE", null) { }
+    }
+
+    suspend fun ptzHome(cameraId: Int) {
+        call("Couldn't go home", "/api/cameras/$cameraId/ptz/home/goto", "POST", null) { }
+    }
+
+    private fun enc(v: String) = java.net.URLEncoder.encode(v, "UTF-8").replace("+", "%20")
 
     /** Server origin (for the embedded web settings). */
     fun baseUrl(): String? = store.serverUrl
