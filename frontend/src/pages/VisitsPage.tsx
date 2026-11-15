@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { listCameras } from "../api/cameras";
 import { buildMediaUrl } from "../api/client";
+import { listPeople } from "../api/faces";
+import {
+  STRANGERS,
+  visitHasStranger,
+  visitKinds,
+  visitMatchesPerson,
+  visitMatchesWhat,
+  visitNames,
+  kindOfLabel,
+  type WhatFilter,
+} from "../utils/visitPeople";
 import { listIncidentsWithEvents, type IncidentWithEvents, type VisitPerson } from "../api/security";
 import { CameraGroupsCard } from "../components/CameraGroupsCard";
 import { PlaybackPopup } from "../components/PlaybackPopup";
@@ -42,6 +53,19 @@ function duration(i: IncidentWithEvents): string {
  *  as opposed to motion only: shadows, rain, headlights, swaying plants. */
 const isReal = (i: IncidentWithEvents) => Object.keys(i.counts ?? {}).length > 0 || (i.identities?.length ?? 0) > 0;
 
+// The "What" filter's choices. "real" (the default) hides motion only.
+const WHAT_OPTIONS: { key: WhatFilter; label: string }[] = [
+  { key: "real", label: "All real activity" },
+  { key: "people", label: "People" },
+  { key: "vehicles", label: "Vehicles" },
+  { key: "animals", label: "Animals" },
+  { key: "packages", label: "Bags / packages" },
+  { key: "other", label: "Other objects" },
+  { key: "motion", label: "Motion only (lights, shadows…)" },
+  { key: "all", label: "Everything" },
+];
+const WHAT_KEYS = new Set<string>(WHAT_OPTIONS.map((o) => o.key));
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : word.endsWith("s") ? "es" : "s"}`;
 
 /** Visits: motion on one or more cameras that belongs together, in order -
@@ -51,9 +75,10 @@ export function VisitsPage() {
   const myZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [tzError, setTzError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>("today");
-  const [realOnly, setRealOnly] = useState(true);
   const [items, setItems] = useState<IncidentWithEvents[]>([]);
   const [cameraNames, setCameraNames] = useState<Record<number, string>>({});
+  // Camera id -> its group (Settings -> Camera groups), for the "Where" filter.
+  const [cameraGroups, setCameraGroups] = useState<Record<number, string>>({});
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [loaded, setLoaded] = useState(false);
   const [playAt, setPlayAt] = useState<{ cameraId: number; at: number; title?: string } | null>(null);
@@ -69,8 +94,49 @@ export function VisitsPage() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Person filter. Kept in the address (?person=) so it survives a refresh
+  // and a filtered view can be bookmarked or shared.
+  // The other filters live there too: ?what= (what was seen), ?camera= or
+  // ?group= (where).
+  const [params, setParams] = useSearchParams();
+  const person = params.get("person") ?? "";
+  const whatParam = params.get("what") ?? "";
+  const what: WhatFilter = WHAT_KEYS.has(whatParam) ? (whatParam as WhatFilter) : "real";
+  const cameraParam = Number(params.get("camera"));
+  const camera = Number.isInteger(cameraParam) && cameraParam > 0 ? cameraParam : null;
+  const group = params.get("group") ?? "";
+  const setFilters = (changes: Record<string, string>) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [k, v] of Object.entries(changes)) {
+          if (v) next.set(k, v);
+          else next.delete(k);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  const setPerson = (p: string) => setFilters({ person: p });
+  const setWhat = (w: WhatFilter) => setFilters({ what: w === "real" ? "" : w });
+  // One "Where" choice: a group ("g:Front") or a camera ("c:3").
+  const where = camera != null ? `c:${camera}` : group ? `g:${group}` : "";
+  const setWhere = (w: string) =>
+    setFilters({ camera: w.startsWith("c:") ? w.slice(2) : "", group: w.startsWith("g:") ? w.slice(2) : "" });
+  const clearFilters = () => setFilters({ person: "", what: "", camera: "", group: "" });
+  const filtered = !!person || what !== "real" || !!where;
+  // Everyone on the People page, so a person can be picked even on a day
+  // they weren't seen (a viewer account may not be allowed this list).
+  const [registry, setRegistry] = useState<string[]>([]);
+
   useEffect(() => {
-    listCameras().then((cs) => setCameraNames(Object.fromEntries(cs.map((c) => [c.id, c.name])))).catch(() => {});
+    listCameras()
+      .then((cs) => {
+        setCameraNames(Object.fromEntries(cs.map((c) => [c.id, c.name])));
+        setCameraGroups(Object.fromEntries(cs.filter((c) => c.area?.trim()).map((c) => [c.id, c.area!.trim()])));
+      })
+      .catch(() => {});
+    listPeople().then((ps) => setRegistry(ps.map((p) => p.name).filter(Boolean))).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -96,7 +162,69 @@ export function VisitsPage() {
   }, [period]);
 
   const real = useMemo(() => items.filter(isReal), [items]);
-  const shown = realOnly ? real : items;
+
+  // Each filter as a test; a visit is shown when it passes all three.
+  // Someone recognised is real activity by definition, so with a person
+  // picked the default "real activity" hides nothing (a stranger may be
+  // known only from an event flag, with nothing in the counts).
+  const filters = useMemo(() => {
+    const byPerson = (i: IncidentWithEvents) => !person || visitMatchesPerson(i, person);
+    const byWhat = (i: IncidentWithEvents) => (!!person && what === "real") || visitMatchesWhat(i, what);
+    const byWhere = (i: IncidentWithEvents) =>
+      camera != null
+        ? (i.camera_ids ?? []).includes(camera)
+        : !group || (i.camera_ids ?? []).some((c) => cameraGroups[c]?.toLowerCase() === group.toLowerCase());
+    return { byPerson, byWhat, byWhere };
+  }, [person, what, camera, group, cameraGroups]);
+  const shown = useMemo(
+    () => items.filter((i) => filters.byPerson(i) && filters.byWhat(i) && filters.byWhere(i)),
+    [items, filters],
+  );
+
+  // Each filter's choices show how many visits picking them would list,
+  // given the other two filters (counted with the same rules).
+  const whatCounts = useMemo(() => {
+    const n: Record<string, number> = { real: 0, all: 0 };
+    for (const i of items) {
+      if (!filters.byPerson(i) || !filters.byWhere(i)) continue;
+      n.all += 1;
+      const kinds = visitKinds(i);
+      if (!kinds.has("motion")) n.real += 1;
+      for (const k of kinds) n[k] = (n[k] ?? 0) + 1;
+    }
+    return n;
+  }, [items, filters]);
+  const whereOptions = useMemo(() => {
+    const cams: Record<number, number> = {};
+    const groups: Record<string, number> = {};
+    for (const id of Object.keys(cameraNames)) cams[Number(id)] = 0;
+    for (const g of Object.values(cameraGroups)) groups[g] = 0;
+    for (const i of items) {
+      if (!filters.byPerson(i) || !filters.byWhat(i)) continue;
+      const ids = i.camera_ids ?? [];
+      for (const c of ids) cams[c] = (cams[c] ?? 0) + 1;
+      for (const g of new Set(ids.map((c) => cameraGroups[c]).filter(Boolean))) groups[g] = (groups[g] ?? 0) + 1;
+    }
+    return {
+      groups: Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])),
+      cameras: Object.keys(cams)
+        .map((id) => ({ id: Number(id), name: cameraNames[Number(id)] ?? `Camera ${id}`, n: cams[Number(id)] }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }, [items, filters, cameraNames, cameraGroups]);
+  const personOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    let strangers = 0;
+    for (const i of items) {
+      if (!filters.byWhere(i) || !(what === "real" || visitMatchesWhat(i, what))) continue;
+      for (const name of visitNames(i)) counts.set(name, (counts.get(name) ?? 0) + 1);
+      if (visitHasStranger(i)) strangers += 1;
+    }
+    for (const name of registry) if (!counts.has(name)) counts.set(name, 0);
+    if (person && person !== STRANGERS && !counts.has(person)) counts.set(person, 0);
+    const names = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return { names, strangers };
+  }, [items, registry, person, what, filters]);
   const hourOf = useMemo(() => {
     const f = new Intl.DateTimeFormat([], { hour: "numeric", hourCycle: "h23", timeZone: timezone || undefined });
     return (iso: string) => Number(f.format(new Date(iso)));
@@ -110,15 +238,15 @@ export function VisitsPage() {
     let unknownFaces = 0;
     for (const i of real) {
       for (const label of Object.keys(i.counts ?? {})) objects[label] = (objects[label] ?? 0) + 1;
-      for (const name of i.identities ?? []) people[name] = (people[name] ?? 0) + 1;
+      // Same rule as the person filter, so "Asha (3 visits)" opens 3 visits.
+      for (const name of visitNames(i)) people[name] = (people[name] ?? 0) + 1;
       for (const id of i.camera_ids ?? []) {
         const name = cameraNames[id] ?? `Camera ${id}`;
         cameras[name] = (cameras[name] ?? 0) + 1;
       }
       const h = String(hourOf(i.started_at));
       hours[h] = (hours[h] ?? 0) + 1;
-      if (i.strangers > 0 || i.events.some((e) => (e.payload as { unknown_faces?: boolean } | null)?.unknown_faces))
-        unknownFaces += 1;
+      if (visitHasStranger(i)) unknownFaces += 1;
     }
     const top = (rec: Record<string, number>) => Object.entries(rec).sort((a, b) => b[1] - a[1]);
     return { objects: top(objects), people: top(people), cameras: top(cameras), busiest: top(hours)[0], unknownFaces };
@@ -148,10 +276,59 @@ export function VisitsPage() {
             </button>
           ))}
         </div>
-        <label style={{ fontSize: 13, display: "flex", gap: 6, alignItems: "center" }}>
-          <input type="checkbox" checked={realOnly} onChange={(e) => setRealOnly(e.target.checked)} />
-          Real activity only
-        </label>
+        <select
+          className="select-sm"
+          value={what}
+          onChange={(e) => setWhat(e.target.value as WhatFilter)}
+          aria-label="What was seen"
+          title="Show only visits where this was seen"
+        >
+          {WHAT_OPTIONS.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label} ({whatCounts[o.key] ?? 0})
+            </option>
+          ))}
+        </select>
+        <select
+          className="select-sm"
+          value={where}
+          onChange={(e) => setWhere(e.target.value)}
+          aria-label="Camera or camera group"
+          title="Show only visits seen on this camera or camera group"
+        >
+          <option value="">All cameras</option>
+          {whereOptions.groups.length > 0 && (
+            <optgroup label="Camera groups">
+              {whereOptions.groups.map(([g, n]) => (
+                <option key={g} value={`g:${g}`}>
+                  {g} ({n})
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label="Cameras">
+            {whereOptions.cameras.map((c) => (
+              <option key={c.id} value={`c:${c.id}`}>
+                {c.name} ({c.n})
+              </option>
+            ))}
+          </optgroup>
+        </select>
+        <select
+          className="select-sm"
+          value={person}
+          onChange={(e) => setPerson(e.target.value)}
+          aria-label="Show visits of one person"
+          title="Show only the visits one person was in"
+        >
+          <option value="">Everyone</option>
+          <option value={STRANGERS}>Strangers ({personOptions.strangers})</option>
+          {personOptions.names.map(([name, n]) => (
+            <option key={name} value={name}>
+              {name} ({n})
+            </option>
+          ))}
+        </select>
         <button className={`btn btn-sm${showGroups ? " btn-primary" : ""}`} onClick={() => setShowGroups((v) => !v)}>
           Camera groups
         </button>
@@ -196,22 +373,52 @@ export function VisitsPage() {
               <strong>{plural(real.length, "visit")}</strong> with real activity
               {motionOnly > 0 && (
                 <span style={{ color: "var(--text-dim)" }}>
-                  {" "}· {motionOnly} motion-only (shadows, light, plants…){realOnly ? " hidden" : ""}
+                  {" "}·{" "}
+                  <button type="button" className="link-btn" onClick={() => setWhat("motion")} title="Show only these">
+                    {motionOnly} motion-only
+                  </button>{" "}
+                  (lights, shadows, plants…){what === "real" ? " hidden" : ""}
                 </span>
               )}
             </div>
             {digest.objects.length > 0 && (
               <div>
-                Seen: {digest.objects.map(([label, n]) => `${label === "person" ? "people" : `${label}s`} in ${plural(n, "visit")}`).join(", ")}
+                Seen:{" "}
+                {digest.objects.map(([label, n], idx) => {
+                  const kind = kindOfLabel(label);
+                  return (
+                    <span key={label}>
+                      {idx > 0 && ", "}
+                      <button type="button" className="link-btn" onClick={() => setWhat(kind)} title={`Show visits with ${kind}`}>
+                        {label === "person" ? "people" : `${label}s`}
+                      </button>{" "}
+                      in {plural(n, "visit")}
+                    </span>
+                  );
+                })}
               </div>
             )}
             {(digest.people.length > 0 || digest.unknownFaces > 0) && (
               <div>
                 People:{" "}
-                {[
-                  ...digest.people.map(([name, n]) => `${name} (${n} visit${n === 1 ? "" : "s"})`),
-                  ...(digest.unknownFaces ? [`unknown faces in ${plural(digest.unknownFaces, "visit")}`] : []),
-                ].join(", ")}
+                {digest.people.map(([name, n], idx) => (
+                  <span key={name}>
+                    {idx > 0 && ", "}
+                    <button type="button" className="link-btn" onClick={() => setPerson(name)} title={`Show ${name}'s visits`}>
+                      {name}
+                    </button>{" "}
+                    ({plural(n, "visit")})
+                  </span>
+                ))}
+                {digest.unknownFaces > 0 && (
+                  <span>
+                    {digest.people.length > 0 && ", "}
+                    <button type="button" className="link-btn" onClick={() => setPerson(STRANGERS)} title="Show visits with unrecognised faces">
+                      unknown faces
+                    </button>{" "}
+                    in {plural(digest.unknownFaces, "visit")}
+                  </span>
+                )}
               </div>
             )}
             {digest.cameras.length > 0 && (
@@ -226,6 +433,43 @@ export function VisitsPage() {
           </div>
         )}
       </div>
+
+      {filtered && loaded && (
+        <div
+          className="card"
+          style={{ marginBottom: 14, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontSize: 14 }}
+        >
+          <span style={{ flex: 1 }}>
+            {plural(shown.length, "visit")}
+            {person && (
+              <>
+                {" "}
+                {person === STRANGERS ? "with an unrecognised face" : <>with <strong>{person}</strong></>}
+              </>
+            )}
+            {what !== "real" && (
+              <>
+                {" "}· <strong>{WHAT_OPTIONS.find((o) => o.key === what)!.label.toLowerCase()}</strong>
+              </>
+            )}
+            {where && (
+              <>
+                {" "}· on{" "}
+                <strong>{camera != null ? (cameraNames[camera] ?? `Camera ${camera}`) : `${group} (group)`}</strong>
+              </>
+            )}{" "}
+            · {periodLabel.toLowerCase()}
+          </span>
+          {shown.length === 0 && period !== "week" && (
+            <button className="btn btn-sm" onClick={() => setPeriod("week")}>
+              Look back 7 days
+            </button>
+          )}
+          <button className="btn btn-sm" onClick={clearFilters}>
+            Clear filters
+          </button>
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 10 }}>
         {shown.map((i) => {
@@ -384,9 +628,13 @@ export function VisitsPage() {
             onClose={() => setPlayAt(null)}
           />
         )}
-        {loaded && items.length > 0 && !shown.length && (
+        {/* With a filter picked the banner above already explains an empty list. */}
+        {loaded && items.length > 0 && !shown.length && !filtered && (
           <div className="card" style={{ color: "var(--text-dim)", fontSize: 13 }}>
-            Only motion-only visits in this period - nothing was recognised. Untick "Real activity only" to see them.
+            Only motion-only visits in this period - nothing was recognised.{" "}
+            <button type="button" className="link-btn" onClick={() => setWhat("all")}>
+              Show them
+            </button>
           </div>
         )}
       </div>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Lint calls the -v26 qualifier redundant at minSdk 26, but AAPT2 doesn't
+         resolve <adaptive-icon> resources from a plain mipmap-anydpi folder
+         (build fails with "resource mipmap/ic_launcher not found"). -->
+    <issue id="ObsoleteSdkInt">
+        <ignore regexp="mipmap-anydpi-v26" />
+    </issue>
+    <!-- Newer library versions are adopted deliberately, not on every lint run. -->
+    <issue id="GradleDependency" severity="informational" />
+</lint>

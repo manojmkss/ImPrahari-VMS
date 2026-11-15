@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis: Android's minimum (30 min); changes made in the app,
+     the tile or the widget itself update it at once. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_mode"
+    android:minWidth="250dp"
+    android:minHeight="80dp"
+    android:resizeMode="horizontal"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen"
+    tools:targetApi="31" />

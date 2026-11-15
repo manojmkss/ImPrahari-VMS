@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LightNVR</string>
+    <string name="tile_label">NVR mode</string>
+    <string name="widget_description">Security mode, with a button for each mode</string>
+    <string name="mode_home">Home</string>
+    <string name="mode_away">Away</string>
+    <string name="mode_night">Night</string>
+    <string name="mode_off">Off</string>
+    <string name="channel_alerts">Alerts</string>
+    <string name="channel_alerts_about">Motion and visit alerts from the NVR</string>
+    <string name="channel_urgent">Urgent alerts</string>
+    <string name="channel_urgent_about">Alerts your rules mark as urgent</string>
+</resources>

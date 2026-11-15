@@ -13,3 +13,12 @@ Dockerfile text eol=lf
 
 # PowerShell is CRLF-native on Windows.
 *.ps1 text eol=crlf
+
+# Android app: the Gradle wrapper script runs under sh (CI, WSL, macOS) and
+# breaks with CRLF; its .bat twin is for Windows. The wrapper jar is binary.
+android/gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
+# Test fixture: real fragmented-MP4 bytes, never line-ending converted.
+*.mp4 binary
+*.bin binary

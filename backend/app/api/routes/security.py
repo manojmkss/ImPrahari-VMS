@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
@@ -357,6 +357,13 @@ class IncidentWithEvents(IncidentOut):
     events: list[dict] = []
 
 
+# Most visits scanned for a filtered list (matching is done in Python, over
+# JSON columns); date bounds normally keep it far below this.
+PERSON_SCAN_LIMIT = 5000
+
+VisitWhat = Literal["real", "people", "vehicles", "animals", "packages", "other", "motion"]
+
+
 @router.get("/incidents", response_model=list[IncidentWithEvents])
 async def list_incidents(
     limit: int = Query(50, le=500),
@@ -364,20 +371,57 @@ async def list_incidents(
     start: datetime | None = None,
     end: datetime | None = None,
     include_events: bool = False,
+    person: Annotated[str | None, Query(max_length=200)] = None,
+    what: VisitWhat | None = None,
+    camera_id: int | None = None,
+    group: Annotated[str | None, Query(max_length=200)] = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     """Visits, newest first. `start`/`end` bound when they began;
     `include_events` adds each visit's events (oldest first) in one round trip,
-    for the Visits page's day summary."""
+    for the Visits page's day summary. Filters (all optional, combined):
+    `person` - visits that person was in (by name, or `__strangers__` for
+    unrecognised faces); `what` - what was seen (`people`, `vehicles`,
+    `animals`, `packages`, `other`, `motion` for motion only such as lights
+    and shadows, or `real` for anything but motion only); `camera_id` /
+    `group` - seen on that camera / on any camera of that group."""
     from app.schemas.system import EventOut
+    from app.services.visit_filter import STRANGERS, matches, matches_cameras, matches_kind
 
     stmt = select(Incident).order_by(Incident.started_at.desc())
     if start is not None:
         stmt = stmt.where(Incident.started_at >= _naive_utc(start))
     if end is not None:
         stmt = stmt.where(Incident.started_at < _naive_utc(end))
-    rows = (await db.execute(stmt.offset(offset).limit(limit))).scalars().all()
+    wanted_cameras: set[int] | None = None
+    if camera_id is not None or group:
+        from app.models.camera import Camera
+
+        wanted_cameras = {camera_id} if camera_id is not None else set()
+        if group:
+            in_group = {c.id for c in (await db.execute(select(Camera))).scalars().all()
+                        if (c.area or "").strip().lower() == group.strip().lower()}
+            # Both given: the camera must be in the group.
+            wanted_cameras = in_group if camera_id is None else wanted_cameras & in_group
+    if person or what or wanted_cameras is not None:
+        # Who was in a visit, what was seen and where live in JSON columns, so
+        # match here - over the (date-bounded, capped) candidates - and page
+        # afterwards.
+        candidates = (await db.execute(stmt.limit(PERSON_SCAN_LIMIT))).scalars().all()
+        payloads: dict[int, list] = {}
+        if person == STRANGERS and candidates:
+            for incident_id, payload in (await db.execute(
+                select(Event.incident_id, Event.payload).where(Event.incident_id.in_([c.id for c in candidates]))
+            )).all():
+                payloads.setdefault(incident_id, []).append(payload)
+        rows = [c for c in candidates
+                if (not person or matches(person, c.identities, c.people, c.strangers, payloads.get(c.id, ())))
+                and (not what or matches_kind(what, c.counts, c.identities, c.people))
+                and (wanted_cameras is None or matches_cameras(c.camera_ids, wanted_cameras))
+                ][offset:offset + limit]
+    else:
+        rows = (await db.execute(stmt.offset(offset).limit(limit))).scalars().all()
     out = [IncidentWithEvents.model_validate(r) for r in rows]
     if include_events and rows:
         events = (await db.execute(

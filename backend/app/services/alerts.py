@@ -247,6 +247,12 @@ async def _maybe_send_push(event: Event, subject: str, urgent: bool = False) -> 
 
     extra = {"url": f"/events/{event.id}" if event.id else "/", "tag": f"{event.type}-{event.camera_id}",
              "event_id": event.id, "urgent": urgent}
+    # For the Android app: tapping the alert plays that camera from that moment.
+    if event.camera_id is not None:
+        extra["camera_id"] = event.camera_id
+    if event.created_at is not None:
+        created = event.created_at if event.created_at.tzinfo else event.created_at.replace(tzinfo=timezone.utc)
+        extra["at"] = round(created.timestamp(), 3)
     if event.snapshot_path and event.id:
         from app.services.signed_media import signed_event_snapshot_path
 

@@ -6,6 +6,32 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.22] - 2026-11-15
+
+### Added
+- **Visits can be filtered.** Each choice shows how many visits it would
+  list, the filters combine, and they're kept in the address, so a filtered
+  view survives a refresh and can be bookmarked.
+  - **What was seen:** people, vehicles (cars, trucks, bikes), animals,
+    bags/packages, other objects, motion only (lights switching, shadows,
+    headlights, plants), or everything. This replaces the "Real activity
+    only" tick box, which is still the default.
+  - **Where:** one camera, or a camera group.
+  - **Who:** a person, or strangers. A person counts as in a visit when they
+    were recognised live, or found by the after-visit review (including a
+    "possibly"). Names and "unknown faces" in the day summary are links that
+    set the filter.
+  - The same filters are on the API, for the Android app: `/api/security/incidents?person=&what=&camera_id=&group=`.
+- Push alerts carry the camera and the time of the event, so the Android app
+  can open playback at that moment. Browsers ignore the new fields.
+- **Android app 0.2** (`android/`, built separately, not yet released):
+  - live grid, and full screen with sound;
+  - playback with a scrub bar, speed and date picker;
+  - Visits with the same filters;
+  - security mode switching, with a Quick Settings tile and a home-screen widget;
+  - alerts through UnifiedPush (e.g. ntfy, no Google account);
+  - the web settings embedded, already signed in.
+
 ## [0.4.21] - 2026-11-12
 
 ### Fixed

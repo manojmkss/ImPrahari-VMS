@@ -204,6 +204,25 @@ select {
   width: 100%;
 }
 
+/* Compact select that sits in a row of .btn-sm buttons (e.g. Visits' person filter). */
+select.select-sm {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* A button that reads as an inline link (clickable names in running text). */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 input:focus, select:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
