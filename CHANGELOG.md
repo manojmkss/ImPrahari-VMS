@@ -6,6 +6,8 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.23] - 2026-11-15
+
 ### Added
 - **PTZ: turn and zoom cameras that have motors** (ONVIF). In a full-screen
   live tile (web) or the app's live view, admin accounts get:

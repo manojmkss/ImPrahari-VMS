@@ -202,7 +202,7 @@ async def lifespan(app: FastAPI):
     await ptz_service.shutdown()
 
 
-app = FastAPI(title="LightNVR API", version="0.4.22", lifespan=lifespan)
+app = FastAPI(title="LightNVR API", version="0.4.23", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
