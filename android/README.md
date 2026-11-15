@@ -68,8 +68,15 @@ Requires Android 8.0+.
 
 ## First run
 
-1. Enter your NVR's address, e.g. `https://192.168.1.10:8443`. Away from home,
-   use its Tailscale address instead.
+1. Enter your NVR's address. Its IP alone (`192.168.1.10`) is enough: the app
+   finds LightNVR's HTTPS port (8443) by itself. The browser's
+   `http://…:8080` also works, because the app switches it to HTTPS.
+   **Better: sign in with the NVR's Tailscale name** (Settings → Remote
+   access shows it, e.g. `lightnvr-1.tail1234.ts.net`). It works at home and
+   away, and its certificate is publicly trusted. A Tailscale IP or short name
+   works too: the app looks up the full name, because Tailscale's certificate
+   is for that name only. The app keeps one address, so a home IP stops
+   working when you leave home.
 2. LightNVR ships a self-signed certificate, so the app shows its SHA-256
    fingerprint once and asks whether to trust it. After that it trusts **only
    that certificate**. That applies to the embedded web settings too. A

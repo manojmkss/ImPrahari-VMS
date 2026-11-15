@@ -162,29 +162,15 @@ class ApiClient(private val store: SessionStore) {
 
     /** Reach the NVR without credentials, and learn whether its certificate
      *  needs the user's go-ahead first. */
-    suspend fun probe(baseUrl: String): ProbeResult = withContext(Dispatchers.IO) {
-        trust.clearLastRejected()
-        val request = Request.Builder().url("$baseUrl/api/auth/setup-status").build()
-        try {
-            http.newCall(request).execute().use { r ->
-                if (r.isSuccessful) {
-                    ProbeResult.Ok
-                } else {
-                    ProbeResult.Failed("the server answered HTTP ${r.code} - is this a LightNVR address?")
-                }
-            }
-        } catch (e: IOException) {
-            val rejected = trust.lastRejected
-                ?: generateSequence<Throwable>(e) { it.cause }.filterIsInstance<UntrustedServerCertificate>().firstOrNull()
-            if (rejected != null) {
-                ProbeResult.UntrustedCertificate(rejected.sha256, rejected.subject)
-            } else {
-                ProbeResult.Failed(e.message ?: e.javaClass.simpleName)
-            }
-        } catch (e: IllegalArgumentException) {
-            ProbeResult.Failed("that doesn't look like a valid address")
-        }
-    }
+    suspend fun probe(baseUrl: String): ProbeResult = withContext(Dispatchers.IO) { probeWith(http, trust, baseUrl) }
+
+    /**
+     * Find the NVR among [candidates] (see [ServerUrl.candidates]): the first
+     * address that answers - or whose certificate needs trusting - wins.
+     * Returns that address with its result, or the most telling failure.
+     */
+    suspend fun findServer(candidates: List<String>): Pair<String, ProbeResult> =
+        withContext(Dispatchers.IO) { findWith(http, trust, candidates) }
 
     suspend fun login(baseUrl: String, username: String, password: String) = withContext(Dispatchers.IO) {
         val body = json.encodeToString(LoginRequest(username, password)).toRequestBody(jsonType)
@@ -369,6 +355,60 @@ class ApiClient(private val store: SessionStore) {
         Request.Builder().url("${base()}/api/media/ws?token=$token").build()
 
     companion object {
+        /** [probe] without the Android parts, for tests. */
+        fun probeWith(http: OkHttpClient, trust: PinnedTrust, baseUrl: String): ProbeResult {
+            trust.clearLastRejected()
+            val request = try {
+                Request.Builder().url("$baseUrl/api/auth/setup-status").build()
+            } catch (e: IllegalArgumentException) {
+                return ProbeResult.Failed("that doesn't look like a valid address")
+            }
+            return try {
+                http.newCall(request).execute().use { r ->
+                    if (r.isSuccessful) {
+                        ProbeResult.Ok
+                    } else {
+                        ProbeResult.Failed("it answered HTTP ${r.code} - is this a LightNVR address?")
+                    }
+                }
+            } catch (e: IOException) {
+                val rejected = trust.lastRejected
+                    ?: generateSequence<Throwable>(e) { it.cause }.filterIsInstance<UntrustedServerCertificate>().firstOrNull()
+                if (rejected != null) {
+                    ProbeResult.UntrustedCertificate(rejected.sha256, rejected.subject)
+                } else {
+                    ProbeResult.Failed(explain(e))
+                }
+            }
+        }
+
+        fun findWith(http: OkHttpClient, trust: PinnedTrust, candidates: List<String>): Pair<String, ProbeResult> {
+            var failure: Pair<String, ProbeResult>? = null
+            for (base in candidates) {
+                val result = probeWith(http, trust, base)
+                if (result !is ProbeResult.Failed) return base to result
+                // Keep the first failure that isn't "nothing listens": it says more.
+                if (failure == null || (failure.second as ProbeResult.Failed).message == NOTHING_LISTENS) {
+                    failure = base to result
+                }
+            }
+            return failure ?: ("" to ProbeResult.Failed("enter the NVR's address"))
+        }
+
+        private const val NOTHING_LISTENS = "nothing answered on that port"
+
+        /** A network error in words a person can act on. */
+        fun explain(e: IOException): String = when (e) {
+            is java.net.ConnectException -> NOTHING_LISTENS
+            is java.net.SocketTimeoutException ->
+                "no answer - is that machine switched on, and is the phone on its network (or Tailscale on)?"
+            is java.net.UnknownHostException -> "that name isn't known on this network"
+            is java.net.NoRouteToHostException -> "no route to it - is the phone on the same network?"
+            is javax.net.ssl.SSLException ->
+                "the secure connection failed (${e.message ?: "TLS"}) - is this the NVR's HTTPS port?"
+            else -> e.message ?: e.javaClass.simpleName
+        }
+
         /** The visits query (pure, so it can be unit-tested). */
         fun visitsPath(startSec: Long, endSec: Long, filter: VisitFilter, limit: Int = 200): String {
             fun enc(v: String) = java.net.URLEncoder.encode(v, "UTF-8").replace("+", "%20")

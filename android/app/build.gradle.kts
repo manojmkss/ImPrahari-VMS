@@ -15,8 +15,8 @@ android {
         // decode is all but universal from here on.
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 4
+        versionName = "0.2.2"
     }
 
     buildTypes {
@@ -63,4 +63,7 @@ dependencies {
     implementation("org.unifiedpush.android:connector:3.0.10")
 
     testImplementation("junit:junit:4.13.2")
+    // A real HTTPS server with a self-signed certificate, for the connect/trust flow.
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
 }

@@ -39,7 +39,9 @@ import com.lightnvr.companion.net.ApiClient
 import com.lightnvr.companion.net.PinnedTrust
 import com.lightnvr.companion.net.ProbeResult
 import com.lightnvr.companion.net.ServerUrl
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 @Composable
@@ -57,19 +59,27 @@ fun ConnectScreen(api: ApiClient, store: SessionStore, onSignedIn: () -> Unit) {
             busy = true
             error = null
             try {
-                val base = ServerUrl.normalize(server)
-                if (base == null) {
-                    error = "Enter the NVR's address, e.g. https://192.168.1.10:8443"
+                // A Tailscale IP or short name becomes its full name (looked up off the main thread).
+                val typed = server
+                val candidates = withContext(Dispatchers.IO) { ServerUrl.candidates(typed, ServerUrl::lookupTailnetName) }
+                if (candidates.isEmpty()) {
+                    error = "Enter the NVR's address, e.g. 192.168.1.10 or https://192.168.1.10:8443"
                     return@launch
                 }
-                when (val probe = api.probe(base)) {
+                // The IP alone, or the browser's http://…:8080, finds the NVR's HTTPS port.
+                val (base, probe) = api.findServer(candidates)
+                when (probe) {
                     is ProbeResult.Ok -> {
+                        server = base // show what it really connected to
                         api.login(base, username.trim(), password)
                         password = ""
                         onSignedIn()
                     }
-                    is ProbeResult.UntrustedCertificate -> untrusted = probe
-                    is ProbeResult.Failed -> error = "Can't reach the NVR: ${probe.message}"
+                    is ProbeResult.UntrustedCertificate -> {
+                        server = base
+                        untrusted = probe
+                    }
+                    is ProbeResult.Failed -> error = "Can't reach the NVR at $base: ${probe.message}"
                 }
             } catch (e: IOException) {
                 error = e.message ?: "Sign-in failed"
@@ -100,7 +110,8 @@ fun ConnectScreen(api: ApiClient, store: SessionStore, onSignedIn: () -> Unit) {
                 value = server,
                 onValueChange = { server = it },
                 label = { Text("NVR address") },
-                placeholder = { Text("https://192.168.1.10:8443") },
+                placeholder = { Text("192.168.1.10") },
+                supportingText = { Text("Its IP or name at home, or its Tailscale name away - the port is found by itself") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp),
