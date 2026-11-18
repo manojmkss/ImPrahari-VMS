@@ -2,7 +2,7 @@
 
 | File | Use |
 |---|---|
-| `imprahari-logo.png` | The full logo: emblem, the ImPrahari wordmark and "Open-source home NVR". README header, posts, slides. |
+| `imprahari-logo.png` | **The final logo (master file)**: emblem, the ImPrahari wordmark and "Open-source home NVR". README header, posts, slides. Every other image here and every app icon is made from it. |
 | `imprahari-emblem-512.png` | The shield emblem alone, square, on the logo's navy (`#011129`). Avatars, app stores. |
 | `imprahari-social-preview.png` | 1280 x 640, for GitHub's link previews (repository Settings → General → Social preview). |
 
