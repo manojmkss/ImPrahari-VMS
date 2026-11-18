@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    LightNVR - one-command updater (Windows).
+    ImPrahari VMS - one-command updater (Windows).
 
 .DESCRIPTION
     Pulls the latest code from GitHub and rebuilds the stack, preserving your
@@ -68,6 +68,7 @@ Write-Step "Fetching latest on '$branch'..."
 if (-not $DryRun) { git fetch --tags origin $branch }
 
 $behind = (git rev-list --count "HEAD..origin/$branch").Trim()
+$headBefore = (git rev-parse HEAD).Trim()
 if ($behind -eq "0" -and -not $DryRun) {
     Write-Step "Already up to date. Rebuilding anyway to pick up any local image changes."
 } else {
@@ -78,6 +79,26 @@ if ($behind -eq "0" -and -not $DryRun) {
         if ($LASTEXITCODE -ne 0) { Write-Die "Can't fast-forward (local history diverged). Resolve manually, then re-run." }
     }
 }
+
+# If the pull changed the update scripts, finish with the new copy: PowerShell
+# already holds this file in memory, so a fix that just arrived would
+# otherwise only apply on the next update.
+if (-not $DryRun -and -not $env:IMPRAHARI_UPDATE_REEXEC) {
+    git diff --quiet $headBefore HEAD -- scripts
+    if ($LASTEXITCODE -ne 0) {
+        Write-Step "The update scripts changed in this pull - restarting with the new versions..."
+        $env:IMPRAHARI_UPDATE_REEXEC = "1"
+        $rerun = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath)
+        if ($Yes) { $rerun += "-Yes" }
+        & powershell.exe @rerun
+        exit $LASTEXITCODE
+    }
+}
+
+# One-time move from the project's former name (settings now, data volumes
+# just before the restart below).
+. (Join-Path $PSScriptRoot "former-name.ps1")
+if (-not $DryRun) { Move-FormerEnv (Join-Path $RepoRoot ".env") }
 
 # ---------------------------------------------------------------------------
 # 2b. The AI service. AI always runs in its own container now, never inside
@@ -145,22 +166,24 @@ if (-not $DryRun) {
     if ($tagAtHead) {
         # Pull that version by name rather than the moving :latest, so what
         # starts is exactly what this checkout says it is.
-        $env:LIGHTNVR_VERSION = $tagAtHead -replace '^v', ''
+        $env:IMPRAHARI_VERSION = $tagAtHead -replace '^v', ''
         Write-Step "Now at release $tagAtHead - fetching its prebuilt images..."
         docker compose pull
-        if ($LASTEXITCODE -eq 0) {
-            docker compose up -d
-        } else {
+        if ($LASTEXITCODE -ne 0) {
             Write-Warn2 "Prebuilt images for $tagAtHead aren't published (yet) - building from source instead."
-            docker compose up -d --build
+            docker compose build
         }
     } else {
         # Newer commits than the last release: no published image contains this
         # code, so building is the only way to run what was just pulled.
         Write-Step "This checkout has changes newer than the last release, so no prebuilt image matches it."
         Write-Step "Building from source (slower, but it's the code you just pulled)..."
-        docker compose up -d --build
+        docker compose build
     }
+    # Images are ready: move any former-name data volumes (the old containers
+    # stop only for the copy), then start. If the move can't happen, nothing restarts.
+    if (-not (Move-FormerVolumes)) { Write-Die "Your data couldn't be moved to the new name, so the update stopped before restarting anything." }
+    docker compose up -d
     if ($LASTEXITCODE -ne 0) { Write-Die "docker compose up failed - see the output above." }
 
     Write-Step "Waiting for the backend to become healthy..."
@@ -172,15 +195,16 @@ if (-not $DryRun) {
     }
     if ($ready) {
         Write-Step "Update complete - backend healthy."
-        # Old LightNVR images no container uses any more (each update leaves
+        # Old ImPrahari images no container uses any more (each update leaves
         # ~3 GB behind otherwise), dangling layers and old build cache.
         $inUse = @(docker ps -a --format '{{.Image}}')
         $old = @(docker image ls --format '{{.Repository}}:{{.Tag}}' | Where-Object {
-            $_ -match '^(ghcr\.io/manojmkss/light_nvr-|ollama/ollama:)' -and $inUse -notcontains $_ })
+            $_ -match '^(ghcr\.io/manojmkss/imprahari-|ollama/ollama:)' -and $inUse -notcontains $_ })
         foreach ($img in $old) { docker image rm $img *> $null }
         docker image prune -f *> $null
         docker builder prune -f --filter until=168h *> $null
         if ($old.Count) { Write-Step "Removed $($old.Count) old image(s) to free disk space." }
+        Remove-FormerLeftovers
     }
     else { Write-Warn2 "Health check didn't pass within 2 minutes - check 'docker compose logs backend'." }
 }

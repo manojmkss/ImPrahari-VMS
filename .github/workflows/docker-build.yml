@@ -53,8 +53,8 @@ jobs:
 
       - name: Build the AI worker (cpu) and smoke-test it
         run: |
-          docker build -f ai-worker/Dockerfile -t lightnvr-ai-worker:ci .
-          docker run -d --name aiw -p 18811:8811 lightnvr-ai-worker:ci
+          docker build -f ai-worker/Dockerfile -t imprahari-ai-worker:ci .
+          docker run -d --name aiw -p 18811:8811 imprahari-ai-worker:ci
           for i in $(seq 1 30); do curl -fs http://localhost:18811/health && break; sleep 2; done
           curl -fs http://localhost:18811/v2/capabilities
           docker rm -f aiw

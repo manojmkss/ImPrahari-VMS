@@ -50,8 +50,8 @@ MANIFEST: dict[str, dict] = {
 # "accuracy" is the model's COCO mAP50-95 as published by Ultralytics: higher
 # finds more people and fewer phantoms, especially small/far-away ones
 # (YOLO26 figures are its end-to-end, NMS-free ones - the exported form).
-DETECTOR_RELEASE = "https://github.com/manojmkss/Light_NVR/releases/download/ai-models-1"
-DETECTOR_LICENSE = "AGPL-3.0 (Ultralytics YOLO) - the same licence as LightNVR"
+DETECTOR_RELEASE = "https://github.com/manojmkss/ImPrahari-VMS/releases/download/ai-models-1"
+DETECTOR_LICENSE = "AGPL-3.0 (Ultralytics YOLO) - the same licence as ImPrahari"
 DETECTORS: dict[str, dict] = {
     "yolo26n": {"label": "Fast", "family": "YOLO26", "accuracy": 40.1, "size_mb": 9.9,
                 "sha256": "8c681d75f508fad6ec9861bed382b2c56ffb1a210e61e8ee779e736a2bfbe613",
@@ -64,7 +64,7 @@ DETECTORS: dict[str, dict] = {
                 "about": "The most accurate. Needs a GPU, or a fast CPU watching only a few cameras."},
     "yolov8n": {"label": "Original", "family": "YOLOv8", "accuracy": 37.3, "size_mb": 12.8,
                 "sha256": "e4b65e02f8ce7ad246e5c0fa5ee5a2500531ba20e275f90a18717cf2d3e33691",
-                "about": "What LightNVR used until now. Misses the most."},
+                "about": "What ImPrahari used until now. Misses the most."},
 }
 
 
@@ -111,7 +111,7 @@ def _fetch(url: str, dest: str, sha256: str, timeout: float) -> str:
         return dest
     tmp = dest + ".part"
     logger.info("Downloading model %s from %s", os.path.basename(dest), url)
-    req = urllib.request.Request(url, headers={"User-Agent": "LightNVR"})
+    req = urllib.request.Request(url, headers={"User-Agent": "ImPrahari"})
     with urllib.request.urlopen(req, timeout=timeout) as resp, open(tmp, "wb") as out:
         while True:
             chunk = resp.read(1 << 20)

@@ -1,6 +1,6 @@
-# Running LightNVR as a permanent Linux install
+# Running ImPrahari as a permanent Linux install
 
-This walks through setting LightNVR up as an always-on home NVR on a Linux
+This walks through setting ImPrahari up as an always-on home NVR on a Linux
 box — a mini-PC, an old laptop, a Proxmox VM, or a Raspberry Pi. It goes
 further than the README's quick start: network/firewall planning, storage
 on a real disk, boot-time recovery, backups, and how to upgrade later
@@ -43,7 +43,7 @@ or a single drive's failure domain with the OS.
 
 ## 2. Install Docker Engine
 
-LightNVR runs entirely in Docker. On Debian/Ubuntu (including Raspberry Pi
+ImPrahari runs entirely in Docker. On Debian/Ubuntu (including Raspberry Pi
 OS, which is Debian-based):
 
 ```bash
@@ -85,18 +85,18 @@ cd ~
 **Step 3 — clone the repository:**
 
 ```bash
-git clone https://github.com/manojmkss/Light_NVR.git
+git clone https://github.com/manojmkss/ImPrahari-VMS.git
 ```
 
 This downloads the whole project *and* its git history into a new
-`Light_NVR/` folder. It's quick — just code, no recordings or Docker images
+`ImPrahari-VMS/` folder. It's quick — just code, no recordings or Docker images
 (those get built/created on first boot). The repo is public, so no login,
 token, or SSH key is needed.
 
 **Step 4 — go into the folder and confirm it landed:**
 
 ```bash
-cd Light_NVR
+cd ImPrahari-VMS
 ls                    # docker-compose.yml, backend/, frontend/, scripts/, ...
 git log --oneline -1  # shows the latest commit
 ```
@@ -108,8 +108,8 @@ That's it — the code is on the box. Continue to §4, or just run
 
 ```bash
 cd ~
-curl -fsSL https://github.com/manojmkss/Light_NVR/archive/refs/heads/main.tar.gz | tar xz
-cd Light_NVR-main
+curl -fsSL https://github.com/manojmkss/ImPrahari-VMS/archive/refs/heads/main.tar.gz | tar xz
+cd ImPrahari-VMS-main
 ```
 
 Same files, minus the history. The tradeoff is updates: with `git clone` you
@@ -153,7 +153,7 @@ credentials and your home's video, and a self-signed cert plus password
 auth is not what you want directly exposed to the open internet. Use the
 built-in remote-access options instead (§7).
 
-A minimal `ufw` setup on the LightNVR box itself:
+A minimal `ufw` setup on the ImPrahari box itself:
 
 ```bash
 sudo ufw allow ssh
@@ -347,7 +347,7 @@ On top of that, the app has its own startup recovery. It checks SQLite
 integrity, then repairs and keeps any recording a power cut left half-written
 (only empty or unreadable files are removed), and resumes normal operation.
 
-### The guardian (`lightnvr-guardian.service`)
+### The guardian (`imprahari-guardian.service`)
 
 The install and update scripts add a small systemd service: a Python script
 from `scripts/guardian/` that uses only the standard library and runs on the
@@ -370,7 +370,7 @@ Docker service, that continuous cameras are still recording, and the disks.
 - Daily at 03:30, and whenever a disk passes 90%, it removes:
   - the systemd journal beyond 200 MB or 14 days;
   - the apt cache;
-  - LightNVR images no container uses;
+  - ImPrahari images no container uses;
   - `/tmp` files older than 7 days.
 - If the NVR is down *and* the recordings disk passes 97%, it deletes the
   oldest recordings. It never touches the last 24 hours.
@@ -378,13 +378,13 @@ Docker service, that continuous cameras are still recording, and the disks.
 What it is doing shows in Settings -> System -> Health & storage, and here:
 
 ```bash
-systemctl status lightnvr-guardian
-journalctl -u lightnvr-guardian -n 50
+systemctl status imprahari-guardian
+journalctl -u imprahari-guardian -n 50
 cat storage/guardian/status.json   # its latest check
 ```
 
 **To stop the NVR on purpose** (maintenance) without the guardian starting it
-again, stop the guardian first: `sudo systemctl stop lightnvr-guardian`. Start
+again, stop the guardian first: `sudo systemctl stop imprahari-guardian`. Start
 it again afterwards. Updates pause it automatically.
 
 **To leave it out**, set `GUARDIAN=off` in `.env`. The next update removes it.
@@ -408,7 +408,7 @@ config backup.
 ## 10. Upgrading later
 
 ```bash
-cd Light_NVR
+cd ImPrahari-VMS
 ./scripts/update-linux.sh
 ```
 
@@ -428,7 +428,7 @@ clean. The equivalent by hand is `git pull && docker compose up -d --build`.)
 Any new database columns are added automatically on startup (SQLite schema
 sync runs as part of app startup) — there's no separate manual migration
 step for normal schema changes. Camera configs, recordings, and accounts
-all carry forward untouched since they live in the `lightnvr-data` volume and
+all carry forward untouched since they live in the `imprahari-data` volume and
 the storage directories, not inside the container image.
 
 Check `docker compose logs backend` after an upgrade to confirm a clean
@@ -467,7 +467,7 @@ credentials already saved, and updates the camera in place. No need to
 delete and re-add it.
 
 **A camera went offline after a router reboot / power cut.** Its DHCP lease
-probably changed and it came back on a different IP. LightNVR heals this
+probably changed and it came back on a different IP. ImPrahari heals this
 itself: a background task notices the camera has been unreachable, scans your
 network, matches the device by its ONVIF serial number, and updates the
 stored address automatically — you'll see a "moved from … to …" note in the

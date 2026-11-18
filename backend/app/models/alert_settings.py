@@ -29,7 +29,7 @@ class AlertSettings(Base):
     telegram_chat_id: Mapped[str] = mapped_column(String(128), default="")
 
     # WhatsApp - official Cloud API only; requires a Meta Business app +
-    # verified WhatsApp Business Account set up outside LightNVR first
+    # verified WhatsApp Business Account set up outside ImPrahari first
     whatsapp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     whatsapp_phone_number_id: Mapped[str] = mapped_column(String(128), default="")
     whatsapp_access_token: Mapped[str] = mapped_column(String(512), default="")

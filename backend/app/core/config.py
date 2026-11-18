@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     admin_password: str = ""
 
     # Database (infra-level; not exposed in the GUI - see README)
-    database_url: str = "sqlite+aiosqlite:////data/lightnvr.db"
+    database_url: str = "sqlite+aiosqlite:////data/imprahari.db"
 
 
 settings = Settings()

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LightNVR"
+rootProject.name = "ImPrahari"
 include(":app")

@@ -3,7 +3,7 @@ import { getSystemSettings } from "../api/system";
 import { formatDateOnly, formatDateTime, formatTimeOfDay } from "../utils/datetime";
 import { useAuth } from "./AuthContext";
 
-const TZ_STORAGE_KEY = "lightnvr_timezone";
+const TZ_STORAGE_KEY = "imprahari_timezone";
 
 interface SettingsContextValue {
   /** IANA display timezone, or "" to use the viewer's local timezone. */

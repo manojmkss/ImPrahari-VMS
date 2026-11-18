@@ -105,7 +105,8 @@ function AccountStep({ onDone }: { onDone: () => void }) {
 
   return (
     <>
-      <h1>Welcome to LightNVR</h1>
+      <img src="/icons/icon-192.png" alt="" className="login-mark" />
+      <h1>Welcome to ImPrahari VMS</h1>
       <p style={{ color: "var(--text-dim)", textAlign: "center", marginTop: -12, marginBottom: 20 }}>
         {mode === "create" ? "Create your admin account to get started." : "Restore a previous configuration."}
       </p>

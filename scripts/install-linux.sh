@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LightNVR - automated Linux install / (re)configure.
+# ImPrahari VMS - automated Linux install / (re)configure.
 #
 # Installs Docker if missing, then writes all machine-specific configuration
 # to a gitignored .env file - a dedicated storage disk and (optionally) the
@@ -87,9 +87,9 @@ ENV_FILE="$REPO_ROOT/.env"
 source "$SCRIPT_DIR/lib-env.sh"
 
 ORIGINAL_USER="${SUDO_USER:-}"
-VOLUME_NAME="lightnvr-data"
+VOLUME_NAME="imprahari-data"
 
-log "Installing/configuring LightNVR from $REPO_ROOT"
+log "Installing/configuring ImPrahari from $REPO_ROOT"
 $DRY_RUN && warn "Dry run - no changes will actually be made."
 
 # ---------------------------------------------------------------------------
@@ -200,19 +200,32 @@ if [[ -z "$(env_get BACKEND_MEM_LIMIT)" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 3b. Re-running this on an install from before the rename: move its .env
+#     settings and Docker volumes to the new name first.
+# ---------------------------------------------------------------------------
+
+if ! $DRY_RUN; then
+  DOCKER=(docker)
+  migrate_former_env
+  migrate_former_volumes || die "Your data couldn't be moved to the new name - nothing was restarted."
+fi
+
+# ---------------------------------------------------------------------------
 # 4. Migrate an old bind-mounted ./data into the named volume, if present
 # ---------------------------------------------------------------------------
 
-OLD_DATA_DB="$REPO_ROOT/data/lightnvr.db"
-if [[ -f "$OLD_DATA_DB" ]] && ! $DRY_RUN; then
+# (The database file may still carry the project's previous name; the backend
+# renames it on its first start.)
+OLD_DATA_DB="$(ls "$REPO_ROOT"/data/*.db 2>/dev/null | head -1 || true)"
+if [[ -n "$OLD_DATA_DB" && -f "$OLD_DATA_DB" ]] && ! $DRY_RUN; then
   volume_has_data=false
   if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1 \
-     && docker run --rm -v "${VOLUME_NAME}:/check" alpine sh -c "[ -f /check/lightnvr.db ]" >/dev/null 2>&1; then
+     && docker run --rm -v "${VOLUME_NAME}:/check" alpine sh -c "ls /check/*.db" >/dev/null 2>&1; then
     volume_has_data=true
   fi
   if $volume_has_data; then
     log "Named volume '$VOLUME_NAME' already has a database - not touching the old ./data/ folder."
-  elif confirm "Found an existing database at ./data/lightnvr.db (pre-upgrade layout). Migrate it into the named volume?"; then
+  elif confirm "Found an existing database in ./data/ (pre-upgrade layout). Migrate it into the named volume?"; then
     docker volume create "$VOLUME_NAME" >/dev/null
     docker run --rm -v "$REPO_ROOT/data:/from:ro" -v "${VOLUME_NAME}:/to" alpine sh -c "cp -a /from/. /to/"
     log "Migrated. ./data/ is left as a safety copy - remove it once you've confirmed everything works."
@@ -302,7 +315,7 @@ fi
 # Prefer the prebuilt multi-arch images from GHCR (a ~1-minute pull, no build).
 # Fall back to building from source if they can't be fetched - e.g. no release
 # has been published yet, the packages are private, or the host is air-gapped.
-log "Fetching prebuilt images and starting LightNVR (first run can take a few minutes)."
+log "Fetching prebuilt images and starting ImPrahari (first run can take a few minutes)."
 if $DRY_RUN; then
   run docker compose pull
   run docker compose up -d

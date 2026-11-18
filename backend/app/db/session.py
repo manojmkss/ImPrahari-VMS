@@ -5,9 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
+from app.core.rename_migration import migrate_database_file
 
 logger = logging.getLogger(__name__)
 
+# Before anything opens the database: an install from before the rename keeps its data.
+migrate_database_file(settings.database_url)
 engine = create_async_engine(settings.database_url, echo=False, future=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 

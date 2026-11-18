@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Downloads the ONNX model(s) the optional AI layer uses for local (CPU)
-# inference, into the `lightnvr-data` Docker volume at /data/models.
+# inference, into the `imprahari-data` Docker volume at /data/models.
 #
 # Why a script instead of an auto-download at runtime: pulling a model from
 # the internet on first motion event would make a security product silently
@@ -12,7 +12,7 @@
 # Usage:
 #   ./scripts/fetch-ai-models.sh              # default: yolov8n
 #   ./scripts/fetch-ai-models.sh yolov8s      # a bigger/more accurate variant
-#   ./scripts/fetch-ai-models.sh yolov8s --volume lightnvr-ai-worker-models
+#   ./scripts/fetch-ai-models.sh yolov8s --volume imprahari-ai-worker-models
 #                                             # on a GPU PC running the ai-worker
 #
 # Models are exported from Ultralytics inside a throwaway container, so
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 MODEL="yolov8n"
-VOLUME="lightnvr-data"
+VOLUME="imprahari-data"
 while [ $# -gt 0 ]; do
   case "$1" in
     --volume) VOLUME="$2"; shift 2 ;;
@@ -41,7 +41,7 @@ case "$MODEL" in
 esac
 
 if ! docker volume inspect "$VOLUME" >/dev/null 2>&1; then
-  echo "Docker volume '$VOLUME' not found - start LightNVR (or the ai-worker) once first (docker compose up -d)." >&2
+  echo "Docker volume '$VOLUME' not found - start ImPrahari (or the ai-worker) once first (docker compose up -d)." >&2
   exit 1
 fi
 

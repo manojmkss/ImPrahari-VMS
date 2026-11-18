@@ -76,7 +76,7 @@ export function RecordingsPage() {
   // Selection + view
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem("lightnvr_rec_view") as ViewMode) || "tiles",
+    () => (localStorage.getItem("imprahari_rec_view") as ViewMode) || "tiles",
   );
   const [preview, setPreview] = useState<Recording | null>(null);
   const [playing, setPlaying] = useState<Recording | null>(null);
@@ -87,7 +87,7 @@ export function RecordingsPage() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("lightnvr_rec_view", viewMode);
+    localStorage.setItem("imprahari_rec_view", viewMode);
   }, [viewMode]);
 
   const load = (reset: boolean) => {

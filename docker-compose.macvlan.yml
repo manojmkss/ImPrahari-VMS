@@ -10,7 +10,7 @@
 # docs/linux-production-install.md for the full walkthrough, including how
 # to find the values below.
 #
-# The backend's existing "lightnvr" bridge network is untouched by this file
+# The backend's existing "imprahari" bridge network is untouched by this file
 # - nginx and the frontend keep reaching it exactly as before, so this can't
 # break anything else even if these settings are wrong for your network; the
 # stack just fails to bring up the extra interface.
@@ -21,7 +21,7 @@
 services:
   backend:
     networks:
-      lightnvr: {}
+      imprahari: {}
       lan:
         ipv4_address: ${LAN_SCAN_BACKEND_IP:?Set LAN_SCAN_BACKEND_IP in .env - see .env.example}
 

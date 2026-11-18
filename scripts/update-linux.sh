@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LightNVR - one-command updater.
+# ImPrahari VMS - one-command updater.
 #
 # Pulls the latest code from GitHub and rebuilds the stack, preserving all
 # your local configuration. This works cleanly precisely because every
@@ -137,11 +137,22 @@ fi
 # Re-exec'ing keeps `update-linux.sh` a genuine one-command update - nobody
 # should have to run it twice, or `git pull` first, to get a working updater.
 SCRIPTS_REL="${SCRIPT_DIR#"$REPO_ROOT"/}"
-if [[ -z "${LIGHTNVR_UPDATE_REEXEC:-}" ]] && ! $DRY_RUN \
+if [[ -z "${IMPRAHARI_UPDATE_REEXEC:-}" ]] && ! $DRY_RUN \
    && ! git diff --quiet "$head_before" HEAD -- "$SCRIPTS_REL" 2>/dev/null; then
   log "The update scripts changed in this pull - restarting with the new versions..."
-  export LIGHTNVR_UPDATE_REEXEC=1
+  export IMPRAHARI_UPDATE_REEXEC=1
   exec bash "$SELF" "$@"
+fi
+
+# ---------------------------------------------------------------------------
+# 2b. One-time move from the project's former name: .env settings now; the
+#     data volumes just before the restart (step 4), so the NVR keeps
+#     recording while the new images download.
+# ---------------------------------------------------------------------------
+if $DRY_RUN; then
+  log "[DRY RUN] Would rename former-name settings in .env and move former-name Docker volumes."
+else
+  migrate_former_env
 fi
 
 # ---------------------------------------------------------------------------
@@ -210,27 +221,35 @@ if ! $DRY_RUN; then
   trap 'guardian_resume "$REPO_ROOT"' EXIT
 fi
 
-pinned="$(env_get LIGHTNVR_VERSION)"
+# Start the stack: first move any former-name data volumes (stops the old
+# containers only for the copy). If that can't happen, nothing is restarted.
+bring_up() {
+  migrate_former_volumes || die "Your data couldn't be moved to the new name, so the update stopped before restarting anything."
+  "${DOCKER[@]}" compose up -d "$@"
+}
+
+pinned="$(env_get IMPRAHARI_VERSION)"
 tag_at_head="$(git tag --points-at HEAD 2>/dev/null | grep -E '^v[0-9]' | sort -V | tail -1 || true)"
 
 if [[ -n "$pinned" ]]; then
   # Explicitly pinned in .env - the user is asking for that exact version.
   log "Fetching prebuilt images for pinned version $pinned..."
   run "${DOCKER[@]}" compose pull
-  run "${DOCKER[@]}" compose up -d
+  if $DRY_RUN; then run "${DOCKER[@]}" compose up -d; else bring_up; fi
 elif [[ -n "$tag_at_head" ]]; then
   # On a release commit: pull that version by name rather than the moving
   # `latest`, so what starts is exactly what this checkout says it is.
-  export LIGHTNVR_VERSION="${tag_at_head#v}"
+  export IMPRAHARI_VERSION="${tag_at_head#v}"
   log "Now at release $tag_at_head - fetching its prebuilt images..."
   if $DRY_RUN; then
     run "${DOCKER[@]}" compose pull
     run "${DOCKER[@]}" compose up -d
   elif "${DOCKER[@]}" compose pull; then
-    "${DOCKER[@]}" compose up -d
+    bring_up
   else
     warn "Prebuilt images for $tag_at_head aren't published (yet) - building from source instead."
-    "${DOCKER[@]}" compose up -d --build
+    "${DOCKER[@]}" compose build
+    bring_up
   fi
 else
   # Newer commits than the last release: no published image contains this code,
@@ -238,7 +257,12 @@ else
   latest_tag="$(git describe --tags --abbrev=0 2>/dev/null || echo 'the last release')"
   log "This checkout has changes newer than $latest_tag, so no prebuilt image matches it."
   log "Building from source (slower, but it's the code you just pulled)..."
-  run "${DOCKER[@]}" compose up -d --build
+  if $DRY_RUN; then
+    run "${DOCKER[@]}" compose up -d --build
+  else
+    "${DOCKER[@]}" compose build
+    bring_up
+  fi
 fi
 
 if ! $DRY_RUN; then
@@ -254,6 +278,7 @@ if ! $DRY_RUN; then
     write_hardware_report
     # Only after a healthy update - until then the old images are the way back.
     prune_old_images
+    cleanup_former_name
     if [[ "${PRUNED_IMAGES:-0}" -gt 0 ]]; then
       log "Removed ${PRUNED_IMAGES} old image(s), freeing about ${PRUNED_GB} GB for recordings."
     fi
@@ -267,7 +292,7 @@ if ! $DRY_RUN; then
     unsupported) warn "Guardian: not installed - $GUARDIAN_WHY." ;;
   esac
 else
-  log "[DRY RUN] Would install/update the lightnvr-guardian service (GUARDIAN=off in .env to skip)."
+  log "[DRY RUN] Would install/update the imprahari-guardian service (GUARDIAN=off in .env to skip)."
 fi
 
 echo

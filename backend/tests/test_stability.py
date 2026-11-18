@@ -197,6 +197,6 @@ def test_backend_messages_reach_docker_logs_and_a_file_scrubbed(tmp_path, monkey
                 root.removeHandler(h)
                 h.close()
     printed = out.getvalue()
-    saved = (tmp_path / "logs" / "lightnvr.log").read_text()
+    saved = (tmp_path / "logs" / "imprahari.log").read_text()
     for text in (printed, saved):
         assert "Continuous recording failed for camera 3" in text and "hunter2" not in text

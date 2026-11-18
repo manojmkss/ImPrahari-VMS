@@ -1,29 +1,31 @@
 <div align="center">
 
-# 🎥 LightNVR
+<img src="docs/brand/imprahari-logo.png" alt="ImPrahari - open-source home NVR" width="720" />
+
+# ImPrahari VMS
 
 ### The self-hosted NVR that's actually easy.
 
 **Point-and-click camera setup. No YAML. Runs on a Raspberry Pi. Free forever.**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/manojmkss/Light_NVR)](https://github.com/manojmkss/Light_NVR/releases)
+[![Release](https://img.shields.io/github/v/release/manojmkss/ImPrahari-VMS)](https://github.com/manojmkss/ImPrahari-VMS/releases)
 [![Docker images](https://img.shields.io/badge/images-GHCR%20(amd64%20%2B%20arm64)-2496ED?logo=docker&logoColor=white)](https://github.com/manojmkss?tab=packages)
 
-![LightNVR dashboard](docs/screenshots/dashboard.png)
+![ImPrahari dashboard](docs/screenshots/dashboard.png)
 
 </div>
 
 ---
 
-LightNVR is an open-source network video recorder for your own IP cameras — record, watch live, scrub back through footage, and get smart motion alerts, all on hardware you own with **nothing in the cloud**. It aims to give you the power of the big NVR apps **without the config files, the paywalls, or the vendor lock-in**.
+ImPrahari VMS is an open-source video monitoring solution (a network video recorder) for your own IP cameras — record, watch live, scrub back through footage, and get smart motion alerts, all on hardware you own with **nothing in the cloud**. It aims to give you the power of the big NVR apps **without the config files, the paywalls, or the vendor lock-in**.
 
 ```bash
 docker compose pull && docker compose up -d
 # open https://<host>:8443 — the browser wizard does the rest
 ```
 
-## Why LightNVR?
+## Why ImPrahari?
 
 - 🖱️ **Set up entirely in the browser.** A first-run wizard creates your admin account, picks storage, and scans for cameras. No editing YAML, no config files.
 - 📦 **One command to run.** Prebuilt Docker images for **amd64 and arm64** — the same setup works on a home server, a mini-PC, or a Raspberry Pi.
@@ -48,9 +50,9 @@ docker compose pull && docker compose up -d
 
 ## How it compares
 
-> Frigate and ZoneMinder are excellent, mature projects. LightNVR's priority is different: **be the easiest all-in-one NVR to stand up and forget about**, while staying completely free.
+> Frigate and ZoneMinder are excellent, mature projects. ImPrahari's priority is different: **be the easiest all-in-one NVR to stand up and forget about**, while staying completely free.
 
-| | **LightNVR** | Frigate | ZoneMinder | Blue Iris |
+| | **ImPrahari** | Frigate | ZoneMinder | Blue Iris |
 |---|:---:|:---:|:---:|:---:|
 | Price | **Free** | Free* | Free | Paid (~$70) |
 | License | AGPLv3 | MIT/Frigate+ | GPL | Proprietary |
@@ -79,17 +81,17 @@ docker compose pull && docker compose up -d
 **With git** (if you have it):
 
 ```bash
-git clone https://github.com/manojmkss/Light_NVR.git
-cd Light_NVR
+git clone https://github.com/manojmkss/ImPrahari-VMS.git
+cd ImPrahari-VMS
 ```
 
 **Without git** — most Windows PCs won't have git installed, and you don't
 need it. Download the code as a ZIP straight from GitHub:
 
-1. Open **https://github.com/manojmkss/Light_NVR**
+1. Open **https://github.com/manojmkss/ImPrahari-VMS**
 2. Click the green **`<> Code`** button → **Download ZIP**
 3. Extract it. On Windows: right-click the downloaded ZIP → *Extract All*.
-   You'll get a folder named `Light_NVR-main`.
+   You'll get a folder named `ImPrahari-VMS-main`.
 4. Open a terminal **inside** that folder. On Windows: hold **Shift**,
    right-click the folder → *Open in Terminal* (or *Open PowerShell window here*).
 
@@ -139,7 +141,7 @@ docker compose pull && docker compose up -d
 
 Prefer to build from source instead (or no release published yet)? Use
 `docker compose up -d --build`. Pin a specific release rather than `:latest`
-by setting `LIGHTNVR_VERSION=v0.2.4` in `.env`.
+by setting `IMPRAHARI_VERSION=v0.2.4` in `.env`.
 
 No `.env` file needed either way. Open `https://<host>:8443` (your browser will warn
 about the self-signed certificate on first visit — that's expected; accept
@@ -165,13 +167,13 @@ and why you'd want it. For a permanent home-server install, see
 | ai-worker | *Optional, and runs on a different machine* — offloads object detection to a GPU box. See [ai-worker/](ai-worker/) |
 
 Data persists across restarts:
-- The SQLite database (accounts, cameras, settings, Tailscale state) lives in a named Docker volume (`lightnvr-data`), not a plain host folder — SQLite's WAL mode needs real POSIX locking, which is unreliable across Docker Desktop's Windows/Mac file-sharing layer on a bind mount. Back it up from **Settings → Backup** in the app, not by copying a file directly.
+- The SQLite database (accounts, cameras, settings, Tailscale state) lives in a named Docker volume (`imprahari-data`), not a plain host folder — SQLite's WAL mode needs real POSIX locking, which is unreliable across Docker Desktop's Windows/Mac file-sharing layer on a bind mount. Back it up from **Settings → Backup** in the app, not by copying a file directly.
 - `./storage` — local recording cache (see Storage management below)
 - `./primary-storage`, `./backup-storage` — default local primary/backup destinations
 
 The recording directories are bind-mounted, so `docker compose down && docker compose up -d` (or a host reboot, with Docker configured to start on boot) picks up exactly where it left off — cameras, users, and recordings all survive restarts.
 
-Upgrading from a version that predated the named volume? `scripts/install-linux.sh` / `install-windows.ps1` detect an old `./data/lightnvr.db` and offer to migrate it into the volume automatically (see the scripts for the manual steps if you'd rather not use them).
+Upgrading from a version that predated the named volume? `scripts/install-linux.sh` / `install-windows.ps1` detect an old `./data/imprahari.db` and offer to migrate it into the volume automatically (see the scripts for the manual steps if you'd rather not use them).
 
 ## Adding a camera
 
@@ -180,7 +182,7 @@ From **Cameras → Add camera** you get two paths:
 1. **Auto-discover (ONVIF)** — scans the LAN for ONVIF devices, or connects directly to a camera IP you type in. Either way, once connected with the camera's ONVIF credentials, it lists the camera's media profiles and lets you pick the main (recording) and sub (live view/motion) streams — RTSP URLs are filled in automatically.
 2. **Manual RTSP** — paste an RTSP URL directly for cameras without ONVIF support, with a "Test connection" button that probes codec/resolution/audio via ffprobe.
 
-> 💡 **Tip for H.265 cameras:** set the camera's *sub-stream* to H.264 in its web UI. LightNVR records the H.265 main stream (efficient storage) and uses the small H.264 sub-stream for instant, seekable browser playback — best of both.
+> 💡 **Tip for H.265 cameras:** set the camera's *sub-stream* to H.264 in its web UI. ImPrahari records the H.265 main stream (efficient storage) and uses the small H.264 sub-stream for instant, seekable browser playback — best of both.
 
 ### A note on ONVIF network discovery in Docker
 
@@ -214,7 +216,7 @@ or crash recording. Pick what runs it under **Settings → AI → AI engine**:
 - **Detection model** (the card below it) — **Fast** (YOLO26n, fine on a CPU),
   **Balanced** (YOLO26s, the best choice with a GPU) or **Accurate**
   (YOLO26m). Each is one click to download (ready-made ONNX files published by
-  LightNVR, checked against a SHA-256 pinned in the code), shows its speed
+  ImPrahari, checked against a SHA-256 pinned in the code), shows its speed
   measured on your device, and is switched to without a restart. Without
   internet access on the AI service, `./scripts/fetch-ai-models.sh yolo26s`
   (or `.\scripts\fetch-ai-models.ps1 -Model yolo26s`) exports one locally.
@@ -296,7 +298,7 @@ Configure channels under **Settings → Alerts** (admin only): email (SMTP), Tel
 
 ## Home Assistant
 
-A monitoring integration (camera view + motion/connectivity/system sensors) lives in [homeassistant/](homeassistant/) — copy the `custom_components/lightnvr` folder into your HA config and restart. It talks to LightNVR's own API (a low-privilege viewer account is enough), not your cameras directly.
+A monitoring integration (camera view + motion/connectivity/system sensors) lives in [homeassistant/](homeassistant/) — copy the `custom_components/imprahari` folder into your HA config and restart. It talks to ImPrahari's own API (a low-privilege viewer account is enough), not your cameras directly.
 
 ## Accounts
 
@@ -326,7 +328,7 @@ Bug reports and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for
 dev setup and conventions. Found a security issue? See
 [SECURITY.md](SECURITY.md) instead of opening a public issue.
 
-If LightNVR is useful to you, **a ⭐ on the repo genuinely helps others find it.**
+If ImPrahari is useful to you, **a ⭐ on the repo genuinely helps others find it.**
 
 ## License
 
@@ -334,7 +336,7 @@ If LightNVR is useful to you, **a ⭐ on the repo genuinely helps others find it
 
 Copyright (C) 2026 manojmkss
 
-LightNVR is free software: everyone may use, study, share, and modify it at no
+ImPrahari is free software: everyone may use, study, share, and modify it at no
 cost, forever. The AGPL is what *guarantees* that — anyone who distributes it,
 or runs a modified version as a network service, must pass those same freedoms
 on and make their source available under this same license. In plain terms: it
@@ -342,4 +344,4 @@ stays free and open for everyone, and it can't be taken closed-source or turned
 into a paid, locked-down product.
 
 Third-party dependencies keep their own (permissive) licenses; the above covers
-LightNVR's own code.
+ImPrahari's own code.

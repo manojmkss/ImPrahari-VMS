@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    LightNVR - automated Windows install.
+    ImPrahari VMS - automated Windows install.
 
 .DESCRIPTION
     Checks/installs Docker Desktop, prepares the bind-mount directories,
@@ -93,7 +93,7 @@ if (-not (Test-Path (Join-Path $RepoRoot "docker-compose.yml"))) {
     Write-Die "docker-compose.yml not found in $RepoRoot - run this from inside the cloned repo."
 }
 
-Write-Step "Installing LightNVR from $RepoRoot"
+Write-Step "Installing ImPrahari from $RepoRoot"
 if ($DryRun) { Write-Warn2 "Dry run - no changes will actually be made." }
 
 # ---------------------------------------------------------------------------
@@ -194,20 +194,32 @@ if ($StoragePath) {
 # starting fresh against an empty volume. The old .\data\ folder is left
 # untouched either way - this only ever copies forward, never deletes.
 
-$VolumeName = "lightnvr-data"
-$OldDataDb = Join-Path $RepoRoot "data\lightnvr.db"
+# Re-running this on an install from before the rename: move its .env
+# settings and Docker volumes to the new name first.
+. (Join-Path $PSScriptRoot "former-name.ps1")
+if (-not $DryRun) {
+    Move-FormerEnv (Join-Path $RepoRoot ".env")
+    if (-not (Move-FormerVolumes)) { Write-Die "Your data couldn't be moved to the new name - nothing was restarted." }
+}
+
+$VolumeName = "imprahari-data"
+# (The database file may still carry the project's previous name; the backend
+# renames it on its first start.)
+$OldDataDb = Get-ChildItem (Join-Path $RepoRoot "data") -Filter *.db -File -ErrorAction SilentlyContinue |
+    Select-Object -First 1 -ExpandProperty FullName
+if (-not $OldDataDb) { $OldDataDb = Join-Path $RepoRoot "data\imprahari.db" }
 
 if ((Test-Path $OldDataDb) -and (-not $DryRun)) {
     $volumeHasData = $false
     docker volume inspect $VolumeName | Out-Null
     if ($LASTEXITCODE -eq 0) {
-        docker run --rm -v "${VolumeName}:/check" alpine sh -c "[ -f /check/lightnvr.db ]" | Out-Null
+        docker run --rm -v "${VolumeName}:/check" alpine sh -c "ls /check/*.db" | Out-Null
         if ($LASTEXITCODE -eq 0) { $volumeHasData = $true }
     }
 
     if ($volumeHasData) {
         Write-Step "Named volume '$VolumeName' already has a database - not touching the old data\ folder."
-    } elseif (Confirm-Step "Found an existing database at data\lightnvr.db (pre-upgrade layout). Migrate it into the new named volume before starting?") {
+    } elseif (Confirm-Step "Found an existing database in data\ (pre-upgrade layout). Migrate it into the new named volume before starting?") {
         Write-Step "Migrating data\ into the '$VolumeName' volume..."
         docker volume create $VolumeName | Out-Null
         $oldDataDir = Join-Path $RepoRoot "data"
@@ -217,7 +229,7 @@ if ((Test-Path $OldDataDb) -and (-not $DryRun)) {
         Write-Warn2 "Skipping migration - the backend will start with an EMPTY database until you migrate data\ manually."
     }
 } elseif ((Test-Path $OldDataDb) -and $DryRun) {
-    Write-Host "[DRY RUN] Would check whether data\lightnvr.db needs migrating into the '$VolumeName' volume." -ForegroundColor DarkGray
+    Write-Host "[DRY RUN] Would check whether the old data\ database needs migrating into the '$VolumeName' volume." -ForegroundColor DarkGray
 }
 
 # ---------------------------------------------------------------------------
@@ -227,12 +239,12 @@ if ((Test-Path $OldDataDb) -and (-not $DryRun)) {
 if ($SkipFirewall) {
     Write-Step "Skipping firewall setup (-SkipFirewall)."
 } else {
-    $existing = Get-NetFirewallRule -DisplayName "LightNVR Web UI" -ErrorAction SilentlyContinue
+    $existing = Get-NetFirewallRule -DisplayName "ImPrahari Web UI" -ErrorAction SilentlyContinue
     if ($existing) {
-        Write-Step "Firewall rule 'LightNVR Web UI' already exists - skipping."
+        Write-Step "Firewall rule 'ImPrahari Web UI' already exists - skipping."
     } elseif (Confirm-Step "Add a firewall rule allowing ports 8080/8443 on trusted (Private/Domain) networks?") {
-        Invoke-MaybeDry "New-NetFirewallRule LightNVR Web UI" {
-            New-NetFirewallRule -DisplayName "LightNVR Web UI" -Direction Inbound -Protocol TCP `
+        Invoke-MaybeDry "New-NetFirewallRule ImPrahari Web UI" {
+            New-NetFirewallRule -DisplayName "ImPrahari Web UI" -Direction Inbound -Protocol TCP `
                 -LocalPort 8080, 8443 -Action Allow -Profile Private, Domain | Out-Null
         }
     }
@@ -261,7 +273,7 @@ Set-EnvVar "AI_MEM_LIMIT" "1536m"
 
 # Prefer prebuilt images from GHCR (a ~1-minute pull, no build); fall back to
 # building from source if they can't be fetched.
-Write-Step "Fetching prebuilt images and starting LightNVR (first run can take a few minutes)."
+Write-Step "Fetching prebuilt images and starting ImPrahari (first run can take a few minutes)."
 if ($DryRun) {
     Write-Host "[DRY RUN] docker compose pull; docker compose up -d" -ForegroundColor DarkGray
 } else {

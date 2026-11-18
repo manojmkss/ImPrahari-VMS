@@ -239,14 +239,14 @@ async def update_alert_settings(
 
 @router.post("/alert-settings/test-email", response_model=TestMessageResult)
 async def test_email(payload: TestEmailRequest, _: User = Depends(require_admin)):
-    success, message = await send_email(payload, "LightNVR test email", "This is a test email from LightNVR.")
+    success, message = await send_email(payload, "ImPrahari test email", "This is a test email from ImPrahari.")
     return TestMessageResult(success=success, message=message)
 
 
 @router.post("/alert-settings/test-telegram", response_model=TestMessageResult)
 async def test_telegram(payload: TestTelegramRequest, _: User = Depends(require_admin)):
     success, message = await send_telegram_message(
-        payload.bot_token, payload.chat_id, "This is a test message from LightNVR."
+        payload.bot_token, payload.chat_id, "This is a test message from ImPrahari."
     )
     return TestMessageResult(success=success, message=message)
 
@@ -254,7 +254,7 @@ async def test_telegram(payload: TestTelegramRequest, _: User = Depends(require_
 @router.post("/alert-settings/test-whatsapp", response_model=TestMessageResult)
 async def test_whatsapp(payload: TestWhatsAppRequest, _: User = Depends(require_admin)):
     success, message = await send_whatsapp_message(
-        payload.phone_number_id, payload.access_token, payload.recipient_number, "This is a test message from LightNVR."
+        payload.phone_number_id, payload.access_token, payload.recipient_number, "This is a test message from ImPrahari."
     )
     return TestMessageResult(success=success, message=message)
 
@@ -367,5 +367,5 @@ async def download_diagnostics(db: AsyncSession = Depends(get_db), _: User = Dep
         "recent_logs": get_recent_logs(300),
     }
 
-    filename = f"lightnvr-diagnostics-{dt.now(tz.utc).strftime('%Y%m%d-%H%M%S')}.json"
+    filename = f"imprahari-diagnostics-{dt.now(tz.utc).strftime('%Y%m%d-%H%M%S')}.json"
     return JSONResponse(bundle, headers={"Content-Disposition": f'attachment; filename="{filename}"'})

@@ -1,5 +1,5 @@
 """Checks against the real models, when they're available locally (the CI
-test job has no models; run with LIGHTNVR_TEST_MODELS=/path/to/models)."""
+test job has no models; run with IMPRAHARI_TEST_MODELS=/path/to/models)."""
 
 import os
 
@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 import pytest
 
-MODELS = os.environ.get("LIGHTNVR_TEST_MODELS", "")
+MODELS = os.environ.get("IMPRAHARI_TEST_MODELS", "")
 needs_models = pytest.mark.skipif(not MODELS or not os.path.isdir(MODELS), reason="no local models")
 
 

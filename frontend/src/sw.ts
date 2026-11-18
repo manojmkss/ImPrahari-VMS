@@ -46,11 +46,12 @@ self.addEventListener("push", (event: PushEvent) => {
     payload = { body: event.data?.text() ?? "" };
   }
 
-  const title = payload.title || "LightNVR";
+  const title = payload.title || "ImPrahari VMS";
   const options: NotificationOptions & { image?: string; renotify?: boolean; actions?: { action: string; title: string }[] } = {
     body: payload.body || "",
     icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    // The status-bar badge is a shape only (Android draws it in white): the emblem silhouette.
+    badge: "/icons/badge-96.png",
     data: { url: payload.url || "/", eventId: payload.event_id },
     tag: payload.tag,
     // Urgent alerts stay on screen until dealt with, and re-alert on update.

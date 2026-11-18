@@ -60,7 +60,7 @@ async def test_push(user: User = Depends(get_current_user), db: AsyncSession = D
     sent = 0
     last_error = ""
     for sub in subscriptions:
-        success, detail = await send_push_to_subscription(sub, "LightNVR test", "This is a test push notification.")
+        success, detail = await send_push_to_subscription(sub, "ImPrahari test", "This is a test push notification.")
         if success:
             sent += 1
         else:

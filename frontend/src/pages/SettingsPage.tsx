@@ -421,7 +421,7 @@ export function AlertsTab() {
         <h3 style={{ marginTop: 0 }}>WhatsApp</h3>
         <p style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 0 }}>
           Uses the official WhatsApp Business Cloud API - this requires a Meta Developer app with a verified
-          WhatsApp Business Account already set up (outside LightNVR) to get a phone number ID and access token.
+          WhatsApp Business Account already set up (outside ImPrahari) to get a phone number ID and access token.
           There's no simpler official option; unofficial automation risks your WhatsApp account being banned, so
           it's not supported here.
         </p>
@@ -1724,11 +1724,11 @@ export function PushNotificationsCard() {
     <div className="card" style={{ maxWidth: 400, marginTop: 20 }}>
       <h3 style={{ marginTop: 0 }}>Push notifications</h3>
       <p style={{ color: "var(--text-dim)", fontSize: 13, marginTop: 0 }}>
-        Get motion/offline/storage alerts as notifications on this device, even when LightNVR isn't open.
+        Get motion/offline/storage alerts as notifications on this device, even when ImPrahari isn't open.
       </p>
       {iosNeedsInstall ? (
         <p style={{ color: "var(--text-dim)", fontSize: 13 }}>
-          On iPhone/iPad, push only works for an installed app: tap Share → "Add to Home Screen", then open LightNVR
+          On iPhone/iPad, push only works for an installed app: tap Share → "Add to Home Screen", then open ImPrahari
           from the home screen icon and come back here.
         </p>
       ) : (
@@ -1902,7 +1902,7 @@ function SystemTab() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `lightnvr-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.json`;
+    a.download = `imprahari-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

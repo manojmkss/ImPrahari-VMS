@@ -25,7 +25,7 @@ function LiveClock() {
 export function LiveViewPage() {
   const { data: cameras } = usePolling(listCameras, 15000);
   const { data: statsResp } = usePolling(getStreamStats, 2000);
-  const { layout, layoutId, setLayoutId, page, setPage } = useGridLayout("lightnvr_layout");
+  const { layout, layoutId, setLayoutId, page, setPage } = useGridLayout("imprahari_layout");
 
   const enabledCameras = useMemo(() => (cameras ?? []).filter((c) => c.enabled), [cameras]);
   const stats: StreamStat[] = statsResp?.stats ?? [];
@@ -50,7 +50,7 @@ export function LiveViewPage() {
           layout={layout}
           page={page}
           onPageChange={setPage}
-          orderStorageKey="lightnvr_live_order"
+          orderStorageKey="imprahari_live_order"
           emptyMessage="No enabled cameras yet. Add one from the Cameras page."
         />
       )}

@@ -27,7 +27,7 @@ import time
 logger = logging.getLogger(__name__)
 
 HEARTBEAT_SECONDS = 5.0
-LOOP_STALL_SECONDS = float(os.environ.get("LIGHTNVR_WATCHDOG_STALL_SECONDS", "90"))
+LOOP_STALL_SECONDS = float(os.environ.get("IMPRAHARI_WATCHDOG_STALL_SECONDS", "90"))
 MEMORY_EXIT_FRACTION = 0.95
 MEMORY_STRIKES = 3  # consecutive over-limit checks before exiting
 
@@ -48,7 +48,7 @@ class Watchdog:
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._mem_strikes = 0
-        self.enabled = os.environ.get("LIGHTNVR_WATCHDOG", "1") != "0"
+        self.enabled = os.environ.get("IMPRAHARI_WATCHDOG", "1") != "0"
 
     def _beat(self) -> None:
         self._last_beat = time.monotonic()

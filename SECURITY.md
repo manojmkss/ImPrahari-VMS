@@ -1,6 +1,6 @@
 # Security Policy
 
-LightNVR handles camera credentials, recorded video, and (optionally) remote
+ImPrahari handles camera credentials, recorded video, and (optionally) remote
 access into your home network. Vulnerabilities here have real consequences,
 so please report them privately rather than through a public issue.
 

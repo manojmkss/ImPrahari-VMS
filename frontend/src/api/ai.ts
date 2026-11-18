@@ -140,7 +140,7 @@ export const setAIEngine = (device: "auto" | EngineDevice) =>
   apiFetch<EngineState>("/ai/engine", { method: "PUT", body: JSON.stringify({ device }) });
 export const benchmarkAIEngine = () => apiFetch<EngineState>("/ai/engine/benchmark", { method: "POST" });
 
-// ── Detection model (ready-made models published by LightNVR) ────────────────
+// ── Detection model (ready-made models published by ImPrahari) ────────────────
 
 export interface DetectionModel {
   name: string;

@@ -47,8 +47,8 @@ from app.services.storage_manager import storage_manager
 
 logger = logging.getLogger(__name__)
 
-GUARDIAN_DIR = os.environ.get("LIGHTNVR_GUARDIAN_DIR", "/storage/guardian")
-STATE_FILE = os.environ.get("LIGHTNVR_HOUSEKEEPING_FILE", "/data/housekeeping.json")
+GUARDIAN_DIR = os.environ.get("IMPRAHARI_GUARDIAN_DIR", "/storage/guardian")
+STATE_FILE = os.environ.get("IMPRAHARI_HOUSEKEEPING_FILE", "/data/housekeeping.json")
 BRIDGE_SECONDS = 30
 CLEAN_EVERY_SECONDS = 6 * 3600
 LOG_MAX_AGE_DAYS = 14

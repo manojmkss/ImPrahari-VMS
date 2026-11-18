@@ -16,7 +16,7 @@ TTL_SECONDS = 24 * 3600
 
 
 def _sig(event_id: int, exp: int) -> str:
-    key = (settings.jwt_secret_key or "lightnvr").encode()
+    key = (settings.jwt_secret_key or "imprahari").encode()
     return hmac.new(key, f"snap:{event_id}:{exp}".encode(), hashlib.sha256).hexdigest()[:32]
 
 

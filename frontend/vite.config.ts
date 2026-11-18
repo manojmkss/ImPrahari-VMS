@@ -21,9 +21,9 @@ export default defineConfig({
       includeAssets: ["icons/favicon-16.png", "icons/favicon-32.png"],
       manifest: {
         id: "/",
-        name: "LightNVR",
-        short_name: "LightNVR",
-        description: "Self-hosted home NVR",
+        name: "ImPrahari VMS",
+        short_name: "ImPrahari",
+        description: "Self-hosted video monitoring solution",
         theme_color: "#0f1216",
         background_color: "#0f1216",
         display: "standalone",

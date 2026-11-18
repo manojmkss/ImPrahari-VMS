@@ -1,0 +1,47 @@
+name: Upgrade test
+
+# Installs the last release from before the rename on a fresh machine, then
+# updates it with scripts/update-linux.sh the way a user does, and checks the
+# account, cameras, data volume, .env and guardian all come through
+# (scripts/ci/upgrade-test.sh). Slow (it builds every image), so it runs only
+# when the update machinery changes, or by hand.
+
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "scripts/**"
+      - "docker-compose*.yml"
+      - "backend/app/core/rename_migration.py"
+      - "backend/app/db/session.py"
+      - ".github/workflows/upgrade-test.yml"
+  workflow_dispatch:
+    inputs:
+      from_tag:
+        description: "Release to upgrade from"
+        default: "v0.4.23"
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the test installs an older tag from this clone
+
+      - name: Make room for two sets of images
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker system prune -af >/dev/null
+          df -h /
+
+      - name: Upgrade an install from before the rename
+        run: bash scripts/ci/upgrade-test.sh "${{ github.event.inputs.from_tag || 'v0.4.23' }}"
+
+      - name: Logs on failure
+        if: failure()
+        run: |
+          docker ps -a
+          for c in $(docker ps -a --format '{{.Names}}'); do echo "=== $c"; docker logs --tail 60 "$c" 2>&1; done
+          sudo journalctl -u imprahari-guardian --no-pager -n 50 || true

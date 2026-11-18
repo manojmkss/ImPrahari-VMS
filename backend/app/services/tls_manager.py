@@ -26,7 +26,7 @@ def cert_exists() -> bool:
     return os.path.exists(CERT_PATH) and os.path.exists(KEY_PATH)
 
 
-def generate_self_signed(common_name: str = "lightnvr") -> None:
+def generate_self_signed(common_name: str = "imprahari") -> None:
     """Uses the `cryptography` library directly rather than shelling out to
     openssl - it's already a dependency (via python-jose), so this needs no
     extra system package. Browsers will still show an untrusted-CA warning

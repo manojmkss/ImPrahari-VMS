@@ -47,7 +47,7 @@ async def mount_smb(mount_point: str, remote_spec: str, username: str | None, pa
         # Use a credentials file rather than -o username=...,password=... so
         # the password never appears in `ps` output, which any process in
         # the container (or anyone with docker exec) could otherwise read.
-        fd, cred_path = tempfile.mkstemp(prefix="lightnvr-cifs-")
+        fd, cred_path = tempfile.mkstemp(prefix="imprahari-cifs-")
         try:
             os.write(fd, f"username={username}\npassword={password or ''}\n".encode())
         finally:

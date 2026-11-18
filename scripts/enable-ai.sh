@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LightNVR - set up the local AI service (LightNVR Vision) on this machine.
+# ImPrahari VMS - set up the local AI service (ImPrahari Vision) on this machine.
 #
 # Detects what this machine can actually do (CPU / Intel GPU / NVIDIA GPU),
 # starts the matching ai-worker image next to the NVR, and PROVES it with a
@@ -146,7 +146,7 @@ start_worker() {
   # Released images match a v* checkout; otherwise build from this source.
   local tag; tag="$(git tag --points-at HEAD 2>/dev/null | grep -E '^v[0-9]' | sort -V | tail -1 || true)"
   if [ -n "$tag" ]; then
-    export LIGHTNVR_VERSION="${tag#v}"
+    export IMPRAHARI_VERSION="${tag#v}"
     "${DOCKER[@]}" compose pull ai-worker || "${DOCKER[@]}" compose build ai-worker
   else
     "${DOCKER[@]}" compose build ai-worker

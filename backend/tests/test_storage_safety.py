@@ -142,9 +142,9 @@ def test_update_removes_only_images_no_container_uses(tmp_path):
         #!/bin/sh
         echo "$@" >> "{log}"
         case "$1 $2" in
-          "ps -a") printf '%s\n' ghcr.io/manojmkss/light_nvr-backend:0.4.13 ghcr.io/manojmkss/light_nvr-ai-worker:0.4.13-openvino nginx:1.27-alpine ;;
-          "image ls") printf '%s\n' ghcr.io/manojmkss/light_nvr-backend:0.4.12 ghcr.io/manojmkss/light_nvr-backend:0.4.13 \
-                        ghcr.io/manojmkss/light_nvr-backend:latest ghcr.io/manojmkss/light_nvr-ai-worker:0.4.13-openvino \
+          "ps -a") printf '%s\n' ghcr.io/manojmkss/imprahari-backend:0.4.13 ghcr.io/manojmkss/imprahari-ai-worker:0.4.13-openvino nginx:1.27-alpine ;;
+          "image ls") printf '%s\n' ghcr.io/manojmkss/imprahari-backend:0.4.12 ghcr.io/manojmkss/imprahari-backend:0.4.13 \
+                        ghcr.io/manojmkss/imprahari-backend:latest ghcr.io/manojmkss/imprahari-ai-worker:0.4.13-openvino \
                         nginx:1.26-alpine python:3.11-slim ;;
         esac
         exit 0
@@ -154,5 +154,5 @@ def test_update_removes_only_images_no_container_uses(tmp_path):
     out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     removed = [line.split()[-1] for line in log.read_text().splitlines() if line.startswith("image rm")]
-    assert removed == ["ghcr.io/manojmkss/light_nvr-backend:0.4.12", "ghcr.io/manojmkss/light_nvr-backend:latest"]
-    assert "N=2" in out.stdout  # in-use images, and anything not LightNVR's, are left alone
+    assert removed == ["ghcr.io/manojmkss/imprahari-backend:0.4.12", "ghcr.io/manojmkss/imprahari-backend:latest"]
+    assert "N=2" in out.stdout  # in-use images, and anything not ImPrahari's, are left alone

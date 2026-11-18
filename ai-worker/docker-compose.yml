@@ -1,12 +1,12 @@
-# LightNVR Vision on ANOTHER machine (typically a PC with a GPU).
+# ImPrahari Vision on ANOTHER machine (typically a PC with a GPU).
 # (On the NVR box itself, use ./scripts/enable-ai.sh in the main folder instead.)
 #
 #   cd ai-worker
 #   cp .env.example .env          # set AI_WORKER_API_KEY, pick AI_WORKER_VARIANT
 #   docker compose up -d
-#   ../scripts/fetch-ai-models.sh yolov8s --volume lightnvr-ai-worker-models
+#   ../scripts/fetch-ai-models.sh yolov8s --volume imprahari-ai-worker-models
 #
-# Then in LightNVR: Settings -> AI -> "Another PC running the LightNVR ai-worker",
+# Then in ImPrahari: Settings -> AI -> "Another PC running the ImPrahari ai-worker",
 # address http://<this-machine-ip>:8811, the same key, "Check it works".
 #
 # NVIDIA: set AI_WORKER_VARIANT=cuda and also start with the GPU override:
@@ -16,14 +16,14 @@
 
 services:
   ai-worker:
-    image: ghcr.io/manojmkss/light_nvr-ai-worker:${LIGHTNVR_VERSION:-latest}-${AI_WORKER_VARIANT:-cpu}
+    image: ghcr.io/manojmkss/imprahari-ai-worker:${IMPRAHARI_VERSION:-latest}-${AI_WORKER_VARIANT:-cpu}
     build:
       context: ..
       dockerfile: ai-worker/Dockerfile
       args:
         VARIANT: ${AI_WORKER_VARIANT:-cpu}
         BASE_IMAGE: ${AI_WORKER_BASE_IMAGE:-python:3.11-slim-bookworm}
-    container_name: lightnvr-ai-worker
+    container_name: imprahari-ai-worker
     restart: unless-stopped
     init: true
     environment:
@@ -39,4 +39,4 @@ services:
 
 volumes:
   ai-worker-models:
-    name: lightnvr-ai-worker-models
+    name: imprahari-ai-worker-models

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Dark window background so there's no white flash before Compose draws. -->
-    <style name="Theme.LightNVR" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.ImPrahari" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/nvr_background</item>
     </style>
 

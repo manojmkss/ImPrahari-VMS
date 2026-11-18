@@ -10,7 +10,7 @@ import {
 import type { AISettings } from "../api/types";
 
 /** Which model finds people, vehicles and animals: ready-made models
- *  published by LightNVR, downloaded on request (checksum-verified), timed on
+ *  published by ImPrahari, downloaded on request (checksum-verified), timed on
  *  the device in use, and switched to without a restart. */
 export function DetectionModelCard({ settings, onSettings }: { settings: AISettings; onSettings: (s: AISettings) => void }) {
   const [st, setSt] = useState<DetectionModels | null>(null);
@@ -155,7 +155,7 @@ export function DetectionModelCard({ settings, onSettings }: { settings: AISetti
       ) : null}
       {st && (
         <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 8 }}>
-          Downloaded from LightNVR&apos;s GitHub releases only when you press Download, and checked against the checksum
+          Downloaded from ImPrahari&apos;s GitHub releases only when you press Download, and checked against the checksum
           this version ships with. Licence: {st.license}.
         </div>
       )}

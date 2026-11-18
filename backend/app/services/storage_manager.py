@@ -42,7 +42,7 @@ def _tier_params(config: StorageConfig, tier: str) -> dict | None:
 
 def _probe_writable_sync(path: str) -> None:
     os.makedirs(path, exist_ok=True)
-    test_file = os.path.join(path, ".lightnvr_health_check")
+    test_file = os.path.join(path, ".imprahari_health_check")
     with open(test_file, "w") as f:
         f.write("ok")
     os.remove(test_file)

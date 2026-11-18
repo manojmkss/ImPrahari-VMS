@@ -10,7 +10,7 @@
 services:
   ai-describe:
     image: ollama/ollama:${DESCRIBER_OLLAMA_VERSION:-0.40.2}
-    container_name: lightnvr-ai-describe
+    container_name: imprahari-ai-describe
     # Docker's own log for this container, capped (it otherwise grows forever).
     logging:
       driver: json-file
@@ -28,15 +28,15 @@ services:
       OLLAMA_MAX_LOADED_MODELS: "1"
       OLLAMA_MAX_QUEUE: "4"
     volumes:
-      - lightnvr-describe-models:/root/.ollama
+      - imprahari-describe-models:/root/.ollama
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 60s
       timeout: 10s
       retries: 3
     networks:
-      - lightnvr
+      - imprahari
 
 volumes:
-  lightnvr-describe-models:
-    name: lightnvr-describe-models
+  imprahari-describe-models:
+    name: imprahari-describe-models

@@ -13,7 +13,7 @@ from app.models.system_secret import SystemSecret
 
 logger = logging.getLogger(__name__)
 
-VAPID_CLAIM_SUB = "mailto:admin@lightnvr.local"
+VAPID_CLAIM_SUB = "mailto:admin@imprahari.local"
 
 
 def _b64url(data: bytes) -> str:

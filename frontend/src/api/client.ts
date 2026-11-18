@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
-const ACCESS_KEY = "lightnvr_access_token";
-const REFRESH_KEY = "lightnvr_refresh_token";
+const ACCESS_KEY = "imprahari_access_token";
+const REFRESH_KEY = "imprahari_refresh_token";
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_KEY);
@@ -78,7 +78,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, retry
       return apiFetch<T>(path, options, false);
     }
     clearTokens();
-    window.dispatchEvent(new Event("lightnvr:unauthorized"));
+    window.dispatchEvent(new Event("imprahari:unauthorized"));
     throw new ApiError(401, "Not authenticated");
   }
 

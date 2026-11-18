@@ -1,10 +1,10 @@
-# LightNVR AI worker
+# ImPrahari AI worker
 
 Runs object detection on **a different machine from the NVR** — typically one
-with a GPU. Point LightNVR at it and your NVR box stops doing inference
+with a GPU. Point ImPrahari at it and your NVR box stops doing inference
 entirely.
 
-You only need this if you want detection offloaded. LightNVR runs YOLO on its
+You only need this if you want detection offloaded. ImPrahari runs YOLO on its
 own CPU out of the box, which is fine for a handful of cameras (detection only
 fires on a motion event, never per frame).
 
@@ -19,8 +19,8 @@ fires on a motion event, never per frame).
 ## Setup (on the GPU machine)
 
 ```bash
-git clone https://github.com/manojmkss/Light_NVR.git
-cd Light_NVR/ai-worker
+git clone https://github.com/manojmkss/ImPrahari-VMS.git
+cd ImPrahari-VMS/ai-worker
 cp .env.example .env      # set AI_WORKER_API_KEY
 docker compose up -d --build
 ```
@@ -42,7 +42,7 @@ NVR doing the work itself. Fix your CUDA setup before wiring it up.
 3. In `docker-compose.yml`: uncomment the `deploy.resources` GPU block.
 4. `docker compose up -d --build` and confirm `"device":"cuda"`.
 
-## Connect LightNVR to it
+## Connect ImPrahari to it
 
 **Settings → AI → Where it runs → "Another PC with a GPU"**
 

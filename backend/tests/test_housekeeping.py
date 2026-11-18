@@ -179,7 +179,7 @@ def test_guardian_messages_become_alerts_and_its_deletes_drop_their_rows(tmp_pat
     outbox = tmp_path / "guardian" / "outbox"
     outbox.mkdir(parents=True)
     (outbox / "1-recovery.json").write_text(json.dumps(
-        {"message": "Guardian: restarted lightnvr-backend - not answering.", "kind": "recovery", "notify": True}))
+        {"message": "Guardian: restarted imprahari-backend - not answering.", "kind": "recovery", "notify": True}))
     (outbox / "2-recovery.json").write_text(json.dumps(
         {"message": "Guardian: deleted the 25 oldest recordings - disk full.", "kind": "recovery", "notify": False,
          "deleted_files": gone}))

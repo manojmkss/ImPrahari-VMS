@@ -17,7 +17,7 @@ class RemoteAccessSettings(Base):
 
     tailscale_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     tailscale_authkey: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    tailscale_hostname: Mapped[str] = mapped_column(String(64), default="lightnvr")
+    tailscale_hostname: Mapped[str] = mapped_column(String(64), default="imprahari")
 
     cloudflare_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     cloudflare_token: Mapped[str | None] = mapped_column(String(2048), nullable=True)

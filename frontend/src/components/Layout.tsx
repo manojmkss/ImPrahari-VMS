@@ -66,12 +66,15 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [status]);
 
   const health = quickHealth(status ?? null);
-  const title = TITLES[location.pathname] ?? "LightNVR";
+  const title = TITLES[location.pathname] ?? "ImPrahari VMS";
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">LightNVR</div>
+        <div className="sidebar-brand">
+          <img src="/icons/icon-192.png" alt="" className="brand-mark" />
+          ImPrahari VMS
+        </div>
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (
             <NavLink

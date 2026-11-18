@@ -1,3 +1,4 @@
+import "./renameMigration"; // must stay first: moves saved state before anything reads it
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

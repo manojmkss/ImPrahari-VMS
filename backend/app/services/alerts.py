@@ -40,16 +40,16 @@ async def _with_retries(label: str, send, *args) -> bool:
 
 
 _SUBJECTS = {
-    "motion_summary": "LightNVR: motion event summary",
-    "motion_update": "LightNVR alert: another person arrived",
-    "loitering": "LightNVR alert: loitering",
-    "line_cross": "LightNVR alert: line crossed",
-    "mode_changed": "LightNVR: security mode changed",
-    "tamper": "LightNVR alert: camera tampering",
-    "arrival": "LightNVR: person arrived",
-    "incident_summary": "LightNVR: visit summary",
-    "package": "LightNVR: package",
-    "guardian": "LightNVR guardian",
+    "motion_summary": "ImPrahari: motion event summary",
+    "motion_update": "ImPrahari alert: another person arrived",
+    "loitering": "ImPrahari alert: loitering",
+    "line_cross": "ImPrahari alert: line crossed",
+    "mode_changed": "ImPrahari: security mode changed",
+    "tamper": "ImPrahari alert: camera tampering",
+    "arrival": "ImPrahari: person arrived",
+    "incident_summary": "ImPrahari: visit summary",
+    "package": "ImPrahari: package",
+    "guardian": "ImPrahari guardian",
 }
 # Urgent alerts not acknowledged within this long are sent again (once).
 ESCALATE_AFTER_SECONDS = 120
@@ -123,7 +123,7 @@ async def maybe_send_alert(event: Event, escalation: bool = False) -> None:
     # if nothing could be delivered - a failed alert must not silence the next.
     _last_alert_at[key] = now
 
-    subject = _SUBJECTS.get(event.type, f"LightNVR alert: {event.type.replace('_', ' ')}")
+    subject = _SUBJECTS.get(event.type, f"ImPrahari alert: {event.type.replace('_', ' ')}")
     if urgent:
         subject = ("UNACKNOWLEDGED - " if escalation else "URGENT - ") + subject
     if urgent and not escalation:

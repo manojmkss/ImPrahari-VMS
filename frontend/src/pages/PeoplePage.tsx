@@ -169,7 +169,7 @@ function EditCell({ value, placeholder, list, onSave }: { value: string; placeho
   );
 }
 
-/** People LightNVR recognises, and faces it has seen but can't name yet. */
+/** People ImPrahari recognises, and faces it has seen but can't name yet. */
 export function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [groups, setGroups] = useState<FaceGroup[]>([]);

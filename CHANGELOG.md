@@ -1,10 +1,56 @@
 # Changelog
 
-All notable changes to LightNVR are documented here. The format is based on
+All notable changes to ImPrahari VMS are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project aims
 to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+- **Android app: save a clip from playback** (⬇ Save). Pick the start and
+  end on a trim bar or by 5-second steps, up to 2 hours; optionally convert
+  it to H.264 so any phone plays it. The clip downloads in the background
+  into Movies/ImPrahari, with a progress notification that opens it when done.
+  Uses the NVR's existing clip export, now covered by tests
+  (`backend/tests/test_clip_export.py`).
+
+### Changed
+- **New logo**: the ImPrahari shield emblem is the web app's icon (browser tab,
+  `favicon.ico`, installed app, login and setup pages, sidebar, push
+  notifications and their status-bar badge) and the Android app's icon
+  (launcher, Android 13+ themed icon, sign-in screen). Logo files and where
+  each is used: `docs/brand/`. `scripts/make-brand-icons.py` remakes every
+  icon from the logo.
+- **The project is now called ImPrahari VMS** (video monitoring solution).
+  Read it as "I'm Prahari" - *praharī* is the Sanskrit/Hindi word for a
+  watchman. The new name is used
+  everywhere: the web app, push and email alerts, the Android app, the Home
+  Assistant integration, the Docker images
+  (`ghcr.io/manojmkss/imprahari-backend`, `-frontend`, `-ai-worker`), the
+  containers (`imprahari-backend`, ...), the data volume (`imprahari-data`),
+  the database file (`/data/imprahari.db`), the `.env` settings (`IMPRAHARI_*`)
+  and the host guardian (`imprahari-guardian.service`).
+
+### Upgrading an existing install
+- **Linux: run `./scripts/update-linux.sh` as usual** - it moves everything
+  over by itself: the `.env` settings, the data volume (copied while the NVR
+  is stopped for a moment; the old volume is kept as a backup and the update
+  prints how to remove it), the describer's models, and the guardian service.
+  The database file is renamed when the new backend first starts. If the disk
+  can't hold a copy of the data volume, the update stops before restarting
+  anything and says how much room it needs.
+- **Windows:** run `.\scripts\update-windows.ps1`. If the first run after the
+  rename shows the setup page, run it once more - the second run brings your
+  data over (the updater from before the rename can't).
+- **Web browsers** stay logged in and keep their layouts.
+- **Android app:** the new app (`com.imprahari.app`, 0.4.0) installs next to
+  the old one; sign in once, then uninstall the old app.
+- **Home Assistant:** remove the old integration, copy
+  `custom_components/imprahari` in, restart, and add *ImPrahari VMS* again.
+- **AI worker on another PC:** its model volume is now
+  `imprahari-ai-worker-models`; fetch the model again with
+  `scripts/fetch-ai-models.sh <model> --volume imprahari-ai-worker-models`.
+- Your Tailscale address doesn't change (the NVR keeps its tailnet name).
 
 ## [0.4.23] - 2026-11-15
 
@@ -204,7 +250,7 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - On those installs Docker makes the LAN network the backend's gateway and
     silently drops its `127.0.0.1:8000` port, which is where the guardian
     asked "are you answering?". It never got an answer, so it restarted the
-    backend, interrupting recording and live view, and sent "LightNVR is
+    backend, interrupting recording and live view, and sent "ImPrahari is
     down" messages.
   - When the port doesn't answer, the guardian now asks from inside the
     container, as Docker's own health check does. It acts only if that
@@ -260,7 +306,7 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - The day's summary counts strangers.
 - **The guardian: a service on the host that watches the NVR from outside
   Docker.** Installed by the Linux install and update scripts
-  (`lightnvr-guardian.service`; `GUARDIAN=off` in `.env` to leave it out).
+  (`imprahari-guardian.service`; `GUARDIAN=off` in `.env` to leave it out).
   Every minute it checks each container, the backend, the Docker service,
   that continuous cameras are still making recordings, and the disks.
   - **It recovers, one step at a time.** A container that is unhealthy, has
@@ -279,7 +325,7 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     - systemd journal entries beyond 200 MB or 14 days (it also caps the
       journal permanently);
     - the apt cache;
-    - LightNVR images no container uses, and old build cache;
+    - ImPrahari images no container uses, and old build cache;
     - `/tmp` files older than 7 days.
   - **A last resort for a full disk.** If the NVR is down *and* the
     recordings disk passes 97%, it deletes the oldest recordings until the
@@ -328,7 +374,7 @@ Stability release, from a review of the code and a week of production data.
   camera. Now at least 15 GB (or 5%) is always kept free by removing the
   oldest footage first - checked every 5 minutes and the moment space runs
   short - and footage from the last 24 hours is never removed (you're told
-  instead). The update removes old LightNVR images after a healthy update,
+  instead). The update removes old ImPrahari images after a healthy update,
   and the describer is only added when the disk has room for it.
 - **No false "stalled" restart after a camera comes back.** After an outage
   longer than ~12 minutes, the health check counted the outage as "no
@@ -346,7 +392,7 @@ Stability release, from a review of the code and a week of production data.
   day has passed, plus a note when space recovers - instead of every 30
   minutes.
 - **The backend's own warnings and errors now reach `docker logs`** - before,
-  only web requests did - and are also kept in /data/logs/lightnvr.log (5 x
+  only web requests did - and are also kept in /data/logs/imprahari.log (5 x
   10 MB), which survives updates. Camera passwords are scrubbed from both.
   Docker's logs for every container are capped at 5 x 10 MB.
 
@@ -683,9 +729,9 @@ GPU when you have one, tamper and package alerts, and search.
   faces" at any time; unnamed faces expire after 7 days. With a cloud vision
   model, faces are blurred before any picture leaves the house.
 
-### Added - local AI service (LightNVR Vision)
+### Added - local AI service (ImPrahari Vision)
 - The ai-worker is rewritten on ONNX Runtime (no PyTorch) with images for CPU,
-  Intel GPU (OpenVINO) and NVIDIA (CUDA): `ghcr.io/manojmkss/light_nvr-ai-worker`.
+  Intel GPU (OpenVINO) and NVIDIA (CUDA): `ghcr.io/manojmkss/imprahari-ai-worker`.
 - **`./scripts/enable-ai.sh`** detects the hardware, starts the right image next
   to the NVR (isolated from recording, with its own CPU/RAM limit) and proves it
   with a real benchmark - a GPU that isn't actually usable (common in VMs) falls
@@ -866,7 +912,7 @@ which also made updates themselves appear to do nothing.
 
 ### Added
 - **Instant H.265 recording playback via an H.264 sub-stream copy.** For cameras
-  that record H.265 (which Firefox and most Chrome can't decode), LightNVR now
+  that record H.265 (which Firefox and most Chrome can't decode), ImPrahari now
   records the camera's H.264 sub-stream in parallel as a small, seekable
   playback companion (a plain stream-copy - almost no extra CPU). Browsers play
   that copy instantly with no on-demand transcode, and it also makes the last
@@ -913,7 +959,7 @@ which also made updates themselves appear to do nothing.
   Cameras → Zones; stored per camera, empty = the whole frame as before.
 - **H.265 recordings now play in every browser.** HEVC won't decode in Firefox
   and many Chrome installs. When you open an H.265 clip in a browser that can't
-  play it, LightNVR transcodes that clip to H.264 on demand and plays it
+  play it, ImPrahari transcodes that clip to H.264 on demand and plays it
   (cached, so re-watching is instant) - recordings stay stored as efficient
   H.265, and the transcode only runs when actually needed. Recordings also show
   a codec badge. Works on the authenticated playback pages and kiosk views.
@@ -931,7 +977,7 @@ to GHCR so a fresh install is `docker compose pull && docker compose up -d` -
 no build step.
 
 ### Added
-- **Prebuilt images + releases.** `ghcr.io/manojmkss/light_nvr-backend` and
+- **Prebuilt images + releases.** `ghcr.io/manojmkss/imprahari-backend` and
   `-frontend`, built for amd64 and arm64 by the release workflow. `docker
   compose pull` fetches them; building from source stays available as a
   fallback.
@@ -966,23 +1012,23 @@ no build step.
 - `.gitattributes` pins shell scripts to LF so a fresh Windows clone runs
   cleanly (no nginx CRLF crash-loop).
 
-[Unreleased]: https://github.com/manojmkss/Light_NVR/compare/v0.4.9...HEAD
-[0.4.9]: https://github.com/manojmkss/Light_NVR/compare/v0.4.8...v0.4.9
-[0.4.8]: https://github.com/manojmkss/Light_NVR/compare/v0.4.7...v0.4.8
-[0.4.7]: https://github.com/manojmkss/Light_NVR/compare/v0.4.6...v0.4.7
-[0.4.6]: https://github.com/manojmkss/Light_NVR/compare/v0.4.5...v0.4.6
-[0.4.5]: https://github.com/manojmkss/Light_NVR/compare/v0.4.4...v0.4.5
-[0.4.4]: https://github.com/manojmkss/Light_NVR/compare/v0.4.3...v0.4.4
-[0.4.3]: https://github.com/manojmkss/Light_NVR/compare/v0.4.2...v0.4.3
-[0.4.2]: https://github.com/manojmkss/Light_NVR/compare/v0.4.1...v0.4.2
-[0.4.1]: https://github.com/manojmkss/Light_NVR/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/manojmkss/Light_NVR/compare/v0.3.1...v0.4.0
-[0.3.1]: https://github.com/manojmkss/Light_NVR/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/manojmkss/Light_NVR/compare/v0.2.5...v0.3.0
-[0.2.5]: https://github.com/manojmkss/Light_NVR/compare/v0.2.4...v0.2.5
-[0.2.4]: https://github.com/manojmkss/Light_NVR/compare/v0.2.3...v0.2.4
-[0.2.3]: https://github.com/manojmkss/Light_NVR/compare/v0.2.2...v0.2.3
-[0.2.2]: https://github.com/manojmkss/Light_NVR/compare/v0.2.1...v0.2.2
-[0.2.1]: https://github.com/manojmkss/Light_NVR/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/manojmkss/Light_NVR/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/manojmkss/Light_NVR/releases/tag/v0.1.0
+[Unreleased]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.9...HEAD
+[0.4.9]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.8...v0.4.9
+[0.4.8]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.7...v0.4.8
+[0.4.7]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.6...v0.4.7
+[0.4.6]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.5...v0.4.6
+[0.4.5]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.4...v0.4.5
+[0.4.4]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.3...v0.4.4
+[0.4.3]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.2.5...v0.3.0
+[0.2.5]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.2.4...v0.2.5
+[0.2.4]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/manojmkss/ImPrahari-VMS/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/manojmkss/ImPrahari-VMS/releases/tag/v0.1.0

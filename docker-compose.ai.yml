@@ -1,4 +1,4 @@
-# LightNVR Vision as a sidecar on the NVR host. Added to COMPOSE_FILE in .env
+# ImPrahari Vision as a sidecar on the NVR host. Added to COMPOSE_FILE in .env
 # by ./scripts/enable-ai.sh - don't edit; re-run the script to change it.
 #
 # Why a separate container: AI runs isolated from recording (a crash or
@@ -6,14 +6,14 @@
 # capped so ffmpeg always has headroom.
 services:
   ai-worker:
-    image: ghcr.io/manojmkss/light_nvr-ai-worker:${LIGHTNVR_VERSION:-latest}-${AI_WORKER_VARIANT:-cpu}
+    image: ghcr.io/manojmkss/imprahari-ai-worker:${IMPRAHARI_VERSION:-latest}-${AI_WORKER_VARIANT:-cpu}
     build:
       context: .
       dockerfile: ai-worker/Dockerfile
       args:
         VARIANT: ${AI_WORKER_VARIANT:-cpu}
         BASE_IMAGE: ${AI_WORKER_BASE_IMAGE:-python:3.11-slim-bookworm}
-    container_name: lightnvr-ai-worker
+    container_name: imprahari-ai-worker
     # Docker's own log for this container, capped (it otherwise grows forever).
     logging:
       driver: json-file
@@ -31,6 +31,6 @@ services:
     # Shares the NVR's data volume: the models fetched with
     # scripts/fetch-ai-models.sh live in /data/models.
     volumes:
-      - lightnvr-data:/data
+      - imprahari-data:/data
     networks:
-      - lightnvr
+      - imprahari

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ai/engine", tags=["ai"])
 
 LOCAL_WORKER_URL = "http://ai-worker:8811"  # the AI service on this NVR (compose service name)
-HARDWARE_FILE = os.environ.get("LIGHTNVR_HARDWARE_FILE", "/data/hardware.json")
+HARDWARE_FILE = os.environ.get("IMPRAHARI_HARDWARE_FILE", "/data/hardware.json")
 
 
 def hardware_report() -> dict | None:
@@ -143,7 +143,7 @@ async def benchmark_devices(_: User = Depends(require_admin)):
     return await _call("POST", f"{url}/v2/engine/benchmark", headers, 300)
 
 
-# ── Detection model (ready-made models published by LightNVR) ────────────────
+# ── Detection model (ready-made models published by ImPrahari) ────────────────
 
 
 async def _detectors(url: str, headers: dict, method: str = "GET", path: str = "", timeout: float = 20) -> dict:

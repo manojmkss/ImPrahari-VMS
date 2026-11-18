@@ -1,6 +1,6 @@
-# LightNVR for Android
+# ImPrahari for Android
 
-A companion app for a LightNVR server, for the things you do on a phone:
+A companion app for an ImPrahari server, for the things you do on a phone:
 - watch every camera live, with sound;
 - play back recordings;
 - go through visits;
@@ -45,6 +45,11 @@ because the sub stream is too small to zoom into.
 - The scrub bar shows the day's recordings: drag it or tap a moment. You can pause, jump ±30 s, play at ½× to 8×, zoom (15 min to 24 h), or pick a date and time.
 - Small gaps between recording files play straight through, and longer gaps are skipped.
 - Picking a moment with no recording jumps to the next footage.
+- **⬇ Save** saves part of the recording to the phone (Movies/ImPrahari, so the gallery shows it):
+  - drag the two handles on the trim bar (green where there's footage), nudge start or end by 5 s, or set either one to the moment playing now ("Here");
+  - the bar can span 2 min, 10 min, 30 min or 2 h, and one clip can be up to 2 hours;
+  - "Plays on any phone (H.264)" converts it on the NVR (slower); otherwise you get the camera's original, full quality;
+  - the NVR cuts the clip, then it downloads with a progress notification; leaving the screen doesn't stop it. Tap the notification or "▶ Play" to watch it.
 
 **Quick Settings tile.**
 - Edit the Quick Settings panel and add **NVR mode**.
@@ -65,7 +70,7 @@ it. **ntfy** (F-Droid or Play Store) is the usual choice.
 
 1. Install ntfy. Its defaults are fine: it uses the public `ntfy.sh` server,
    or your own ntfy server if you set one.
-2. In LightNVR: **Settings → Turn on alerts**, then allow notifications.
+2. In ImPrahari: **Settings → Turn on alerts**, then allow notifications.
 3. Use **Send a test** to check it works.
 
 The NVR sends exactly what it sends to browsers (Web Push), **encrypted for
@@ -87,19 +92,19 @@ Requires Android 8.0+.
 ## First run
 
 1. Enter your NVR's address. Its IP alone (`192.168.1.10`) is enough: the app
-   finds LightNVR's HTTPS port (8443) by itself. The browser's
+   finds ImPrahari's HTTPS port (8443) by itself. The browser's
    `http://…:8080` also works, because the app switches it to HTTPS.
    **Better: sign in with the NVR's Tailscale name** (Settings → Remote
-   access shows it, e.g. `lightnvr-1.tail1234.ts.net`). It works at home and
+   access shows it, e.g. `imprahari-1.tail1234.ts.net`). It works at home and
    away, and its certificate is publicly trusted. A Tailscale IP or short name
    works too: the app looks up the full name, because Tailscale's certificate
    is for that name only. The app keeps one address, so a home IP stops
    working when you leave home.
-2. LightNVR ships a self-signed certificate, so the app shows its SHA-256
+2. ImPrahari ships a self-signed certificate, so the app shows its SHA-256
    fingerprint once and asks whether to trust it. After that it trusts **only
    that certificate**. That applies to the embedded web settings too. A
    publicly-trusted certificate (Let's Encrypt) is accepted without asking.
-3. Sign in with a LightNVR account. A **viewer** account can watch and see
+3. Sign in with an ImPrahari account. A **viewer** account can watch and see
    visits. Changing the mode needs an **admin**.
 
 The app stores the server's tokens, never your password. They're excluded from

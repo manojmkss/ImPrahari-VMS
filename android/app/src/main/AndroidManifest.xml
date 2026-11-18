@@ -5,12 +5,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+: asked for only when the user turns alerts on. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 8-9 only: saving clips to Movies (newer versions need no permission). -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- allowBackup=false + dataExtractionRules: the session store holds a
          refresh token; it must never leave the device in a cloud/adb backup
          or a device-to-device transfer (Android 12+). -->
     <application
-        android:name=".LightNvrApplication"
+        android:name=".ImPrahariApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
@@ -19,7 +23,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LightNVR"
+        android:theme="@style/Theme.ImPrahari"
         tools:targetApi="33">
 
         <!-- configChanges: rotating the phone must not tear down a live stream

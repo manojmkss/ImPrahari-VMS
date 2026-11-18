@@ -1,12 +1,12 @@
-# LightNVR Vision (ai-worker). Build from the REPOSITORY ROOT - it shares the
+# ImPrahari Vision (ai-worker). Build from the REPOSITORY ROOT - it shares the
 # model code in backend/app/vision with the NVR:
 #
-#   docker build -f ai-worker/Dockerfile -t lightnvr-ai-worker .                         # cpu
+#   docker build -f ai-worker/Dockerfile -t imprahari-ai-worker .                         # cpu
 #   docker build -f ai-worker/Dockerfile --build-arg VARIANT=openvino -t ... .           # Intel GPU
 #   docker build -f ai-worker/Dockerfile --build-arg VARIANT=cuda \
 #                --build-arg BASE_IMAGE=nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04 -t ... .   # NVIDIA
 #
-# Prebuilt: ghcr.io/manojmkss/light_nvr-ai-worker:<version>-cpu | -openvino | -cuda
+# Prebuilt: ghcr.io/manojmkss/imprahari-ai-worker:<version>-cpu | -openvino | -cuda
 # Pinned to Debian 12: the plain python:3.11-slim tag moved to Debian 13, which
 # has no Intel GPU compute runtime - so the Intel image silently lost its GPU.
 ARG BASE_IMAGE=python:3.11-slim-bookworm

@@ -1,9 +1,9 @@
-"""Export the ready-made detection models LightNVR offers (Settings -> AI ->
+"""Export the ready-made detection models ImPrahari offers (Settings -> AI ->
 AI engine -> Detection model) and write their manifest.
 
 Each model is exported once here, in CI, instead of on every user's machine:
 the export needs PyTorch + Ultralytics (~2 GB), the NVR only needs the
-resulting ONNX file. Every export is checked with LightNVR's own decoder on a
+resulting ONNX file. Every export is checked with ImPrahari's own decoder on a
 real photo before it is published, and its SHA-256 goes into manifest.json,
 which is then pinned in backend/app/vision/models.py.
 

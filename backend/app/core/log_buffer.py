@@ -55,7 +55,7 @@ class _ScrubbingFormatter(logging.Formatter):
 
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
-LOG_DIR = os.environ.get("LIGHTNVR_LOG_DIR", "/data/logs")
+LOG_DIR = os.environ.get("IMPRAHARI_LOG_DIR", "/data/logs")
 
 
 def install_log_buffer() -> None:
@@ -85,7 +85,7 @@ def install_log_buffer() -> None:
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
         to_file = logging.handlers.RotatingFileHandler(
-            os.path.join(LOG_DIR, "lightnvr.log"), maxBytes=10 * 1024 * 1024, backupCount=4, encoding="utf-8"
+            os.path.join(LOG_DIR, "imprahari.log"), maxBytes=10 * 1024 * 1024, backupCount=4, encoding="utf-8"
         )
         to_file.setLevel(logging.INFO)
         to_file.setFormatter(_ScrubbingFormatter(LOG_FORMAT))

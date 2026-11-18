@@ -164,11 +164,11 @@ detect_ai_hardware() {
   if command -v lspci >/dev/null 2>&1; then
     HW_GPUS="$(lspci 2>/dev/null | grep -Ei 'vga|3d|display' | sed -E 's/^[^ ]+ [^:]+: //' || true)"
     echo "$HW_GPUS" | grep -qi intel && HW_INTEL=true
-  elif [[ -d "${LIGHTNVR_SYS_DRM:-/sys/class/drm}" ]] && grep -qs 0x8086 "${LIGHTNVR_SYS_DRM:-/sys/class/drm}"/card*/device/vendor; then
+  elif [[ -d "${IMPRAHARI_SYS_DRM:-/sys/class/drm}" ]] && grep -qs 0x8086 "${IMPRAHARI_SYS_DRM:-/sys/class/drm}"/card*/device/vendor; then
     HW_INTEL=true; HW_GPUS="Intel GPU"
   fi
   local node
-  node="$(ls "${LIGHTNVR_DEV_DRI:-/dev/dri}"/renderD* 2>/dev/null | head -1 || true)"
+  node="$(ls "${IMPRAHARI_DEV_DRI:-/dev/dri}"/renderD* 2>/dev/null | head -1 || true)"
   if [[ -n "$node" ]]; then HW_DRI=true; HW_RENDER_GID="$(stat -c %g "$node" 2>/dev/null || true)"; fi
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then HW_NVIDIA=true; fi
   if "${dk[@]}" info 2>/dev/null | grep -qi 'nvidia'; then HW_NVIDIA_TOOLKIT=true; fi
@@ -229,8 +229,8 @@ DESCRIBER_MIN_RAM_MB=7500  # "8 GB" machines report a little under 8000
 # configure_ai_service (it uses the GPU facts that one detected).
 configure_describer() {
   local cores ram current out="" f
-  cores="${LIGHTNVR_CORES:-$(nproc 2>/dev/null || echo 1)}"
-  ram="${LIGHTNVR_RAM_MB:-$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)}"
+  cores="${IMPRAHARI_CORES:-$(nproc 2>/dev/null || echo 1)}"
+  ram="${IMPRAHARI_RAM_MB:-$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)}"
   current="$(env_get COMPOSE_FILE)"
   [[ -n "$current" ]] || current="docker-compose.yml"
   local IFS=':'
@@ -269,11 +269,11 @@ _describer_has_disk() {
   if "${dk[@]}" image inspect "$DESCRIBER_IMAGE" >/dev/null 2>&1; then return 0; fi
   root="$("${dk[@]}" info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
   [[ -d "$root" ]] || root="/"
-  DESCRIBER_FREE_GB="${LIGHTNVR_FREE_GB:-$(df -Pk "$root" 2>/dev/null | awk 'NR==2 {print int($4 / 1048576)}')}"
+  DESCRIBER_FREE_GB="${IMPRAHARI_FREE_GB:-$(df -Pk "$root" 2>/dev/null | awk 'NR==2 {print int($4 / 1048576)}')}"
   [[ "${DESCRIBER_FREE_GB:-0}" -ge "$DESCRIBER_MIN_FREE_GB" ]]
 }
 
-# prune_old_images - after a healthy update: remove LightNVR (and describer)
+# prune_old_images - after a healthy update: remove ImPrahari (and describer)
 # images no container uses any more - each update otherwise leaves ~3 GB of
 # old versions behind on the disk recordings live on - plus dangling layers
 # and old build cache. Never touches an image a container uses.
@@ -287,7 +287,7 @@ prune_old_images() {
       "${dk[@]}" image rm "$img" >/dev/null 2>&1 && removed=$((removed + 1))
     fi
   done < <("${dk[@]}" image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
-           | grep -E '^(ghcr\.io/manojmkss/light_nvr-|ollama/ollama:)' || true)
+           | grep -E '^(ghcr\.io/manojmkss/imprahari-|ollama/ollama:)' || true)
   "${dk[@]}" image prune -f >/dev/null 2>&1 || true
   "${dk[@]}" builder prune -f --filter until=168h >/dev/null 2>&1 || true
   after="$(df -Pk / 2>/dev/null | awk 'NR==2 {print $4}')"
@@ -316,9 +316,187 @@ write_hardware_report() {
     | "${dk[@]}" compose exec -T backend sh -c 'cat > /data/hardware.json' 2>/dev/null || true
 }
 
+# --- One-time move of an install made under the project's previous name ----
+#
+# ImPrahari VMS was published under another name before. An install from then
+# keeps its data in Docker volumes, its settings in .env and a host guardian
+# unit, all named after that previous name. These functions move it over.
+#
+# The previous name isn't written anywhere in this project: it is read from
+# the install itself (find_previous_name). Each step does nothing when there
+# is nothing to move, so they are safe on every run.
+
+NEW_NAME="imprahari"
+RENAME_MARKER=".moved-from-previous-name"
+PREVIOUS_NAME=""  # set by find_previous_name; empty = nothing to move
+
+_vol_exists() { "${DOCKER[@]:-docker}" volume inspect "$1" >/dev/null 2>&1; }
+
+# find_previous_name - set PREVIOUS_NAME if this install ran under another
+# name. Call it before anything restarts. Looks, in order, at:
+#   1. the container this compose project runs its backend in ("<name>-backend");
+#   2. the marker a finished move left in the new data volume;
+#   3. a "<name>-data" volume holding "<name>.db" (the stack was already
+#      recreated under the new name - by an updater from before the rename,
+#      or a manual `docker compose up` after `git pull`).
+find_previous_name() {
+  local dk=("${DOCKER[@]:-docker}") id name v
+  [[ -n "$PREVIOUS_NAME" ]] && return 0
+  id="$("${dk[@]}" compose ps -a -q backend 2>/dev/null | head -1 || true)"
+  if [[ -n "$id" ]]; then
+    name="$("${dk[@]}" inspect -f '{{.Name}}' "$id" 2>/dev/null || true)"
+    name="${name#/}"
+    if [[ "$name" =~ ^([a-z0-9_]+)-backend$ && "${BASH_REMATCH[1]}" != "$NEW_NAME" ]]; then
+      PREVIOUS_NAME="${BASH_REMATCH[1]}"
+      return 0
+    fi
+  fi
+  if _vol_exists "$NEW_NAME-data"; then
+    name="$("${dk[@]}" run --rm -v "$NEW_NAME-data:/d:ro" alpine cat "/d/$RENAME_MARKER" 2>/dev/null | head -1 || true)"
+    if [[ "$name" =~ ^[a-z0-9_]+$ ]]; then
+      PREVIOUS_NAME="$name"
+      return 0
+    fi
+  fi
+  while IFS= read -r v; do
+    [[ "$v" =~ ^([a-z0-9_]+)-data$ ]] || continue
+    name="${BASH_REMATCH[1]}"
+    [[ "$name" == "$NEW_NAME" ]] && continue
+    if "${dk[@]}" run --rm -v "$v:/d:ro" alpine test -f "/d/$name.db" >/dev/null 2>&1; then
+      PREVIOUS_NAME="$name"
+      return 0
+    fi
+  done < <("${dk[@]}" volume ls -q 2>/dev/null || true)
+  return 0
+}
+
+# migrate_former_env - rename the previous name's .env settings to
+# IMPRAHARI_*; point DATABASE_URL at the new file name.
+migrate_former_env() {
+  find_previous_name
+  [[ -n "$PREVIOUS_NAME" && -f "$ENV_FILE" ]] || return 0
+  local prefix db
+  prefix="$(tr '[:lower:]-' '[:upper:]_' <<< "$PREVIOUS_NAME")_"
+  if _env_read grep -qE "^${prefix}" "$ENV_FILE"; then
+    _env_as sed -i -E "s/^${prefix}/IMPRAHARI_/" "$ENV_FILE"
+    printf '\033[1;34m==>\033[0m %s\n' "Renamed the ${prefix}* settings in .env to IMPRAHARI_*."
+  fi
+  db="$(env_get DATABASE_URL)"
+  if [[ "$db" == *"/${PREVIOUS_NAME}.db" ]]; then
+    env_set DATABASE_URL "${db%"/${PREVIOUS_NAME}.db"}/imprahari.db"
+  fi
+}
+
+# migrate_former_volume OLD NEW keep|drop - copy OLD into NEW, with every
+# container using either one stopped, so the database is copied at rest.
+# "keep": data that can't be fetched again (database, faces, settings) - the
+# old volume stays as a backup, and the move stops if the disk can't hold a
+# copy. "drop": downloads (describer models) - the old volume is removed after
+# the copy, and with no room they are simply downloaded again.
+#
+# Runs when NEW doesn't exist yet - or exists without the marker and is less
+# than a day old: then the new version was already started on an empty volume.
+# Whatever that empty start wrote is kept inside NEW under .replaced-<time>/,
+# never deleted. Returns 1 if it couldn't move.
+migrate_former_volume() {
+  local old="$1" new="$2" kind="$3" dk=("${DOCKER[@]:-docker}") created now age need free ids made=false
+  _vol_exists "$old" || return 0
+  if _vol_exists "$new"; then
+    "${dk[@]}" run --rm -v "$new:/to:ro" alpine test -e "/to/$RENAME_MARKER" >/dev/null 2>&1 && return 0
+    created="$("${dk[@]}" volume inspect -f '{{.CreatedAt}}' "$new" 2>/dev/null || true)"
+    now="$(date +%s)"
+    age=$(( now - $(date -d "$created" +%s 2>/dev/null || echo 0) ))
+    if (( age > 86400 )); then
+      printf '\033[1;33m!!\033[0m %s\n' "Both $old and $new exist and $new is in use - leaving both as they are." >&2
+      return 0
+    fi
+  else
+    "${dk[@]}" volume create "$new" >/dev/null || return 1
+    made=true
+  fi
+  need="$("${dk[@]}" run --rm -v "$old:/from:ro" alpine du -sk /from 2>/dev/null | awk '{print $1}')"
+  free="$("${dk[@]}" run --rm -v "$new:/to" alpine df -Pk /to 2>/dev/null | awk 'NR==2 {print $4}')"
+  # Room for the copy plus 1 GB to spare (recordings share this disk).
+  if [[ -z "$need" || -z "$free" ]] || (( need + 1048576 > free )); then
+    $made && "${dk[@]}" volume rm "$new" >/dev/null 2>&1
+    if [[ "$kind" == "drop" ]]; then
+      printf '\033[1;33m!!\033[0m %s\n' "Not enough free disk to copy $old - its downloads will be fetched again when needed." >&2
+      return 0
+    fi
+    printf '\033[1;31mERROR:\033[0m %s\n' "Not enough free disk to copy your data ($old, $(( ${need:-0} / 1024 )) MB) to $new. Free some space and run the update again - nothing was changed." >&2
+    return 1
+  fi
+  printf '\033[1;34m==>\033[0m %s\n' "Moving your data to the new name: Docker volume $old -> $new ($(( need / 1024 )) MB)."
+  ids="$({ "${dk[@]}" ps -q --filter "volume=$old"; "${dk[@]}" ps -q --filter "volume=$new"; } 2>/dev/null | sort -u)"
+  if [[ -n "$ids" ]]; then
+    # shellcheck disable=SC2086
+    "${dk[@]}" stop -t 45 $ids >/dev/null
+  fi
+  if ! "${dk[@]}" run --rm -e "PREVIOUS=$PREVIOUS_NAME" -v "$old:/from:ro" -v "$new:/to" alpine sh -c '
+      set -e
+      if [ -n "$(ls -A /to)" ]; then
+        aside="/to/.replaced-$(date +%Y%m%d-%H%M%S)"
+        mkdir "$aside"
+        for f in /to/* /to/.[!.]*; do
+          [ -e "$f" ] && [ "$f" != "$aside" ] && case "$f" in /to/.replaced-*) ;; *) mv "$f" "$aside/" ;; esac
+        done
+      fi
+      cp -a /from/. /to/
+      echo "$PREVIOUS" > "/to/'"$RENAME_MARKER"'"'; then
+    printf '\033[1;31mERROR:\033[0m %s\n' "Copying $old to $new failed - $old is untouched. Run the update again, or ask for help with the output above." >&2
+    # shellcheck disable=SC2086
+    [[ -n "$ids" ]] && "${dk[@]}" start $ids >/dev/null 2>&1
+    return 1
+  fi
+  if [[ "$kind" == "drop" ]]; then
+    "${dk[@]}" volume rm "$old" >/dev/null 2>&1 || true
+  else
+    printf '\033[1;34m==>\033[0m %s\n' "Done. $old is kept as a backup; once everything works, remove it with: docker volume rm $old"
+  fi
+}
+
+# migrate_former_volumes - the data and describer volumes; 1 if one couldn't move.
+migrate_former_volumes() {
+  find_previous_name
+  [[ -n "$PREVIOUS_NAME" ]] || return 0
+  migrate_former_volume "$PREVIOUS_NAME-data" "$NEW_NAME-data" keep || return 1
+  migrate_former_volume "$PREVIOUS_NAME-describe-models" "$NEW_NAME-describe-models" drop || return 1
+}
+
+# remove_former_guardian - stop and remove the guardian unit installed under
+# the previous name (the new one is installed by install_guardian).
+remove_former_guardian() {
+  find_previous_name
+  [[ -n "$PREVIOUS_NAME" ]] || return 0
+  local unit journald
+  unit="$(dirname "$GUARDIAN_UNIT")/${PREVIOUS_NAME}-guardian.service"
+  journald="$(dirname "$GUARDIAN_JOURNALD")/${PREVIOUS_NAME}.conf"
+  [[ -f "$unit" || -f "$journald" ]] || return 0
+  _as_root systemctl disable --now "${PREVIOUS_NAME}-guardian" >/dev/null 2>&1 || true
+  _as_root rm -f "$unit" "$journald" || true
+  _as_root systemctl daemon-reload >/dev/null 2>&1 || true
+}
+
+# cleanup_former_name - after a healthy start: images this project published
+# under another name, and the previous name's compose network (never anything
+# a container still uses).
+cleanup_former_name() {
+  local dk=("${DOCKER[@]:-docker}") in_use img net
+  in_use="$("${dk[@]}" ps -a --format '{{.Image}}' 2>/dev/null | sort -u || true)"
+  while IFS= read -r img; do
+    [[ -n "$img" ]] && ! grep -qxF "$img" <<< "$in_use" && "${dk[@]}" image rm "$img" >/dev/null 2>&1 || true
+  done < <("${dk[@]}" image ls --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+           | grep -E '^ghcr\.io/manojmkss/[^/]+-(backend|frontend|ai-worker):' \
+           | grep -vE "^ghcr\.io/manojmkss/${NEW_NAME}-" || true)
+  [[ -n "$PREVIOUS_NAME" ]] || return 0
+  while IFS= read -r net; do
+    [[ -n "$net" ]] && "${dk[@]}" network rm "$net" >/dev/null 2>&1 || true
+  done < <("${dk[@]}" network ls -q --filter "label=com.docker.compose.network=${PREVIOUS_NAME}" 2>/dev/null || true)
+}
+
 # --- Host guardian (every install and update) ------------------------------
 #
-# lightnvr-guardian.service (scripts/guardian/) watches the containers and the
+# imprahari-guardian.service (scripts/guardian/) watches the containers and the
 # disks from outside Docker: restarts what hangs (Docker never restarts an
 # "unhealthy" container), cleans host waste (journal, apt cache, unused images,
 # old /tmp), and sends Telegram itself when the NVR is down. It never reboots.
@@ -326,8 +504,8 @@ write_hardware_report() {
 #
 #   GUARDIAN=off   in .env: don't install it (and remove it if it was)
 
-GUARDIAN_UNIT="${LIGHTNVR_GUARDIAN_UNIT:-/etc/systemd/system/lightnvr-guardian.service}"
-GUARDIAN_JOURNALD="${LIGHTNVR_JOURNALD_CONF:-/etc/systemd/journald.conf.d/lightnvr.conf}"
+GUARDIAN_UNIT="${IMPRAHARI_GUARDIAN_UNIT:-/etc/systemd/system/imprahari-guardian.service}"
+GUARDIAN_JOURNALD="${IMPRAHARI_JOURNALD_CONF:-/etc/systemd/journald.conf.d/imprahari.conf}"
 
 _as_root() { if [[ $EUID -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 
@@ -337,12 +515,13 @@ _as_root() { if [[ $EUID -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 install_guardian() {
   local repo="$1" unit python
   GUARDIAN_WHY=""
-  if ! command -v systemctl >/dev/null 2>&1 || [[ ! -d "${LIGHTNVR_SYSTEMD_RUN:-/run/systemd/system}" ]]; then
+  if ! command -v systemctl >/dev/null 2>&1 || [[ ! -d "${IMPRAHARI_SYSTEMD_RUN:-/run/systemd/system}" ]]; then
     GUARDIAN_STATE="unsupported"; GUARDIAN_WHY="this machine doesn't run systemd"; return 0
   fi
+  remove_former_guardian
   if [[ "$(env_get GUARDIAN)" == "off" ]]; then
     if [[ -f "$GUARDIAN_UNIT" ]]; then
-      _as_root systemctl disable --now lightnvr-guardian >/dev/null 2>&1 || true
+      _as_root systemctl disable --now imprahari-guardian >/dev/null 2>&1 || true
       _as_root rm -f "$GUARDIAN_UNIT" || true
       _as_root systemctl daemon-reload || true
     fi
@@ -352,23 +531,23 @@ install_guardian() {
   if [[ -z "$python" ]]; then
     GUARDIAN_STATE="unsupported"; GUARDIAN_WHY="python3 isn't installed (sudo apt install python3)"; return 0
   fi
-  unit="$(<"$repo/scripts/guardian/lightnvr-guardian.service")"
+  unit="$(<"$repo/scripts/guardian/imprahari-guardian.service")"
   unit="${unit//@REPO@/"$repo"}"
   unit="${unit//@PYTHON@/"$python"}"
   if [[ "$(cat "$GUARDIAN_UNIT" 2>/dev/null || true)" != "$unit" ]]; then
     printf '%s\n' "$unit" | _as_root tee "$GUARDIAN_UNIT" >/dev/null || true
     _as_root systemctl daemon-reload || true
   fi
-  if ! cmp -s "$repo/scripts/guardian/journald-lightnvr.conf" "$GUARDIAN_JOURNALD" 2>/dev/null; then
+  if ! cmp -s "$repo/scripts/guardian/journald-imprahari.conf" "$GUARDIAN_JOURNALD" 2>/dev/null; then
     _as_root mkdir -p "$(dirname "$GUARDIAN_JOURNALD")" || true
-    _as_root cp "$repo/scripts/guardian/journald-lightnvr.conf" "$GUARDIAN_JOURNALD" || true
+    _as_root cp "$repo/scripts/guardian/journald-imprahari.conf" "$GUARDIAN_JOURNALD" || true
     _as_root systemctl restart systemd-journald >/dev/null 2>&1 || true
   fi
-  _as_root systemctl enable lightnvr-guardian >/dev/null 2>&1 || true
-  if _as_root systemctl restart lightnvr-guardian; then
+  _as_root systemctl enable imprahari-guardian >/dev/null 2>&1 || true
+  if _as_root systemctl restart imprahari-guardian; then
     GUARDIAN_STATE="on"
   else
-    GUARDIAN_STATE="unsupported"; GUARDIAN_WHY="it didn't start - see: journalctl -u lightnvr-guardian"
+    GUARDIAN_STATE="unsupported"; GUARDIAN_WHY="it didn't start - see: journalctl -u imprahari-guardian"
   fi
 }
 

@@ -27,7 +27,8 @@ export function LoginPage() {
   return (
     <div className="login-screen">
       <div className="login-box card">
-        <h1>LightNVR</h1>
+        <img src="/icons/icon-192.png" alt="" className="login-mark" />
+        <h1>ImPrahari VMS</h1>
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label>Username</label>

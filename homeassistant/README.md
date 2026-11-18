@@ -1,8 +1,8 @@
-# LightNVR for Home Assistant
+# ImPrahari for Home Assistant
 
-A monitoring integration for [LightNVR](https://github.com/manojmkss/Light_NVR) - camera
+A monitoring integration for [ImPrahari](https://github.com/manojmkss/ImPrahari-VMS) - camera
 live view, motion/connectivity sensors, and system stats in Home Assistant. Everything is
-read through LightNVR's own authenticated REST API (fast polling, no MQTT broker
+read through ImPrahari's own authenticated REST API (fast polling, no MQTT broker
 required); nothing in this integration connects to a camera's raw RTSP stream directly.
 
 **This is a monitoring-only integration.** It cannot change any camera setting (recording
@@ -11,7 +11,7 @@ mode, motion detection, enabled/disabled) - by design, so a login with a low-pri
 
 ## What you get
 
-- One **camera** entity per LightNVR camera (live view via the always-on substream), plus
+- One **camera** entity per ImPrahari camera (live view via the always-on substream), plus
   an optional disabled-by-default **HD** camera entity for the on-demand main stream.
 - **Motion** and **Connectivity** binary sensors per camera.
 - A **Last motion** timestamp sensor per camera.
@@ -21,25 +21,25 @@ mode, motion detection, enabled/disabled) - by design, so a login with a low-pri
 
 ## Requirements
 
-- A running LightNVR instance reachable from your Home Assistant box (same LAN, or via
+- A running ImPrahari instance reachable from your Home Assistant box (same LAN, or via
   Tailscale/whatever remote access you already use).
-- A LightNVR account - **viewer** role is enough and recommended (Settings → Users in the
-  LightNVR app to create one, if you only have the admin account so far).
+- An ImPrahari account - **viewer** role is enough and recommended (Settings → Users in the
+  ImPrahari app to create one, if you only have the admin account so far).
 
 ## Installation (manual - this folder isn't on HACS)
 
-1. Copy the `custom_components/lightnvr/` folder from this repository into your Home
+1. Copy the `custom_components/imprahari/` folder from this repository into your Home
    Assistant configuration directory, so you end up with:
    ```
-   <config>/custom_components/lightnvr/manifest.json
-   <config>/custom_components/lightnvr/__init__.py
+   <config>/custom_components/imprahari/manifest.json
+   <config>/custom_components/imprahari/__init__.py
    ... (the rest of the files in this folder)
    ```
 2. Restart Home Assistant.
-3. **Settings → Devices & Services → Add Integration**, search for **LightNVR**.
-4. Enter your LightNVR server's host/IP, port (8443 by default), and the viewer account's
+3. **Settings → Devices & Services → Add Integration**, search for **ImPrahari**.
+4. Enter your ImPrahari server's host/IP, port (8443 by default), and the viewer account's
    username/password. Leave **Verify SSL certificate** off unless you've installed a real
-   certificate on LightNVR (it ships a self-signed one by default - this is expected, not
+   certificate on ImPrahari (it ships a self-signed one by default - this is expected, not
    a problem).
 5. One device appears per camera, plus a hub device for system-wide sensors.
 
@@ -47,16 +47,21 @@ mode, motion detection, enabled/disabled) - by design, so a login with a low-pri
 
 - **Polling, not push.** State updates on an interval (cameras/motion every ~10s, system
   stats every ~60s by default) rather than instantly - configurable via the integration's
-  **Configure** button (Settings → Devices & Services → LightNVR → Configure).
-- **Self-signed certificate is the default and that's fine.** LightNVR ships one out of
+  **Configure** button (Settings → Devices & Services → ImPrahari → Configure).
+- **Self-signed certificate is the default and that's fine.** ImPrahari ships one out of
   the box; this integration is built to work with it as-is.
-- **A camera disappearing from LightNVR** (deleted) makes its entities go unavailable
+- **A camera disappearing from ImPrahari** (deleted) makes its entities go unavailable
   rather than disappearing from Home Assistant outright, so any automations/dashboard
   customizations referencing them aren't silently destroyed. Remove them manually from
   Settings → Devices & Services if you want them gone for good.
-- **Reauthentication**: if the saved password stops working (changed on the LightNVR
+- **Reauthentication**: if the saved password stops working (changed on the ImPrahari
   side), Home Assistant will prompt you to re-enter it - look for a notification on the
   integration in Settings → Devices & Services.
+- **Icon.** Home Assistant shows integration icons from its central
+  [brands](https://github.com/home-assistant/brands) repository, not from this folder.
+  The ImPrahari icons in that repository's format are in [`brand/`](brand/)
+  (`icon.png` 256 px, `icon@2x.png` 512 px), ready to submit there as
+  `custom_integrations/imprahari/`. Until then Home Assistant shows a generic icon.
 - Not included in this version, by design (would require an admin account and carries
   real risk of an automation accidentally disabling recording): switches/selects to
   change recording mode, toggle motion detection, or enable/disable a camera from Home

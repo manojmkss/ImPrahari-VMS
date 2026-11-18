@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ai/describer", tags=["ai"])
 
-STATE_FILE = os.environ.get("LIGHTNVR_DESCRIBER_FILE", "/data/describer.json")
+STATE_FILE = os.environ.get("IMPRAHARI_DESCRIBER_FILE", "/data/describer.json")
 LICENSE = "Apache-2.0 (Qwen3-VL, by the Qwen team), run with Ollama (MIT)"
 
 # Vision models for a home NVR, smallest first: the *instruct* builds - the

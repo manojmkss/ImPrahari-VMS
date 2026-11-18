@@ -42,7 +42,7 @@ PLAYBACK_COPY_KEEP_MINUTES = 60
 # (Docker images, the OS, other apps): the oldest footage is removed first, so
 # recording never has to pause for space. The GB cap above only counts
 # recordings and can't see the disk filling up from elsewhere.
-FREE_FLOOR_BYTES = int(float(os.environ.get("LIGHTNVR_MIN_FREE_GB", "15")) * 1024**3)
+FREE_FLOOR_BYTES = int(float(os.environ.get("IMPRAHARI_MIN_FREE_GB", "15")) * 1024**3)
 FREE_FLOOR_PERCENT = 5.0
 FREE_HYSTERESIS_BYTES = 2 * 1024**3  # free a little extra, so it doesn't trim one file every check
 FREE_CHECK_SECONDS = 300

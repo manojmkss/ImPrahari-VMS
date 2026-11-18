@@ -33,8 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleUnauthorized = () => setUser(null);
-    window.addEventListener("lightnvr:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("lightnvr:unauthorized", handleUnauthorized);
+    window.addEventListener("imprahari:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("imprahari:unauthorized", handleUnauthorized);
   }, []);
 
   // Independent of the login-state check below, so a stale/invalid token

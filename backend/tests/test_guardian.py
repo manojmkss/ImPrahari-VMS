@@ -1,4 +1,4 @@
-"""The host guardian (scripts/guardian/lightnvr_guardian.py): it restarts what
+"""The host guardian (scripts/guardian/imprahari_guardian.py): it restarts what
 hangs, step by step, never acts during an update, tells the user directly when
 the NVR is down, and deletes recordings itself only as a last resort - the
 oldest first, never the last day."""
@@ -8,8 +8,8 @@ import json
 import os
 import time
 
-_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "guardian", "lightnvr_guardian.py")
-_spec = importlib.util.spec_from_file_location("lightnvr_guardian", _PATH)
+_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "guardian", "imprahari_guardian.py")
+_spec = importlib.util.spec_from_file_location("imprahari_guardian", _PATH)
 guardian = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(guardian)
 
@@ -25,9 +25,9 @@ class Host:
         self.backend_inside = None  # ... from inside the container (None: same as above)
         self.percent = 50.0
         self.containers = {
-            "lightnvr-backend": ["running", HEALTHY, "ghcr.io/manojmkss/light_nvr-backend:0.4.14"],
-            "lightnvr-frontend": ["running", "Up 2 hours", "ghcr.io/manojmkss/light_nvr-frontend:0.4.14"],
-            "lightnvr-nginx": ["running", HEALTHY, "nginx:alpine"],
+            "imprahari-backend": ["running", HEALTHY, "ghcr.io/manojmkss/imprahari-backend:0.4.14"],
+            "imprahari-frontend": ["running", "Up 2 hours", "ghcr.io/manojmkss/imprahari-frontend:0.4.14"],
+            "imprahari-nginx": ["running", HEALTHY, "nginx:alpine"],
         }
         self.compose_names = None  # None: `docker compose config` fails
         self.calls = []
@@ -39,7 +39,7 @@ class Host:
             return (0, "/nonexistent-docker-root") if self.docker else (1, "Cannot connect")
         if not self.docker and args[0] == "docker":
             return 1, "Cannot connect"
-        if args[:3] == ["docker", "exec", "lightnvr-backend"] and "curl" in args:
+        if args[:3] == ["docker", "exec", "imprahari-backend"] and "curl" in args:
             inside = self.backend if self.backend_inside is None else self.backend_inside
             return (0, "") if inside else (7, "Failed to connect")
         if args[:3] == ["docker", "ps", "-a"] and "--filter" in args:
@@ -94,11 +94,11 @@ def test_a_hung_backend_is_restarted_after_three_minutes_and_then_left_to_settle
     _minutes(g, clock, 2)
     assert host.actions() == []  # one or two bad minutes: could be a blip
     _minutes(g, clock, 1)
-    assert host.actions() == [["docker", "restart", "-t", "45", "lightnvr-backend"]]
+    assert host.actions() == [["docker", "restart", "-t", "45", "imprahari-backend"]]
     _minutes(g, clock, 2)
     assert len(host.actions()) == 1  # settling, not judged yet
     msgs = _outbox(tmp_path)
-    assert msgs and "restarted lightnvr-backend" in msgs[0]["message"]
+    assert msgs and "restarted imprahari-backend" in msgs[0]["message"]
     status = json.loads((tmp_path / "repo" / "storage" / "guardian" / "status.json").read_text())
     assert status["backend"] is False and status["recoveries"]
 
@@ -117,18 +117,18 @@ def test_a_backend_without_a_published_port_is_asked_from_inside_and_left_alone(
     # Really hung (no answer from inside either): restarted as before.
     host.backend_inside = False
     _minutes(g, clock, 3)
-    assert host.actions() == [["docker", "restart", "-t", "45", "lightnvr-backend"]]
+    assert host.actions() == [["docker", "restart", "-t", "45", "imprahari-backend"]]
 
 
 def test_restarts_that_dont_help_escalate_to_recreating_on_the_running_version(tmp_path):
     g, host, clock = _make(tmp_path)
-    host.containers["lightnvr-backend"][1] = "Up 3 minutes (unhealthy)"
+    host.containers["imprahari-backend"][1] = "Up 3 minutes (unhealthy)"
     _minutes(g, clock, 40)
     acts = host.actions()
-    assert acts[:3] == [["docker", "restart", "-t", "45", "lightnvr-backend"]] * 3
+    assert acts[:3] == [["docker", "restart", "-t", "45", "imprahari-backend"]] * 3
     assert acts[3][:3] == ["docker", "compose", "up"] and "--no-build" in acts[3]
     up_env = next(env for a, env in host.calls if a[:3] == ["docker", "compose", "up"])
-    assert up_env == {"LIGHTNVR_VERSION": "0.4.14"}  # never whatever `latest` happens to be
+    assert up_env == {"IMPRAHARI_VERSION": "0.4.14"}  # never whatever `latest` happens to be
     # After that, slow retries - not a restart every few minutes.
     assert len(acts) <= 5
 
@@ -139,7 +139,7 @@ def test_nothing_is_touched_while_an_update_runs(tmp_path):
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text(str(int(clock.t + 1800)))
     host.backend = False
-    host.containers.pop("lightnvr-frontend")
+    host.containers.pop("imprahari-frontend")
     _minutes(g, clock, 10)
     assert host.actions() == []
     assert host.telegrams == []
@@ -161,11 +161,11 @@ def test_a_dead_docker_service_is_restarted_at_most_every_half_hour(tmp_path):
 
 def test_a_missing_container_brings_the_stack_back_but_one_an_update_removed_does_not(tmp_path):
     g, host, clock = _make(tmp_path)
-    host.compose_names = ["lightnvr-backend", "lightnvr-frontend", "lightnvr-nginx"]
-    host.containers["lightnvr-ai-describe"] = ["exited", "Exited (0) 1 day ago", "ollama/ollama:0.40.2"]
+    host.compose_names = ["imprahari-backend", "imprahari-frontend", "imprahari-nginx"]
+    host.containers["imprahari-ai-describe"] = ["exited", "Exited (0) 1 day ago", "ollama/ollama:0.40.2"]
     _minutes(g, clock, 5)
     assert host.actions() == []  # not in the compose files any more: not ours to start
-    host.containers.pop("lightnvr-nginx")
+    host.containers.pop("imprahari-nginx")
     _minutes(g, clock, 3)
     assert host.actions()[0][:3] == ["docker", "compose", "up"]
 
@@ -277,7 +277,7 @@ def test_recording_that_silently_stopped_on_every_online_camera_restarts_the_bac
     minutes(3)
     assert host.actions() == []
     minutes(4)
-    assert host.actions() == [["docker", "restart", "-t", "45", "lightnvr-backend"]]
+    assert host.actions() == [["docker", "restart", "-t", "45", "imprahari-backend"]]
     assert "no camera has made a new recording" in _outbox(tmp_path)[0]["message"]
 
 
@@ -291,14 +291,14 @@ def test_one_camera_without_recordings_is_reported_not_restarted(tmp_path):
     assert host.actions() == []
 
 
-def test_daily_clean_prunes_only_unused_lightnvr_images_and_old_tmp_files(tmp_path):
+def test_daily_clean_prunes_only_unused_imprahari_images_and_old_tmp_files(tmp_path):
     g, host, clock = _make(tmp_path)
     g.state.pop("daily")
     old, new = tmp_path / "tmp" / "old.bin", tmp_path / "tmp" / "new.bin"
     old.write_bytes(b"x")
     new.write_bytes(b"x")
     os.utime(old, (clock.t - 8 * 86400, clock.t - 8 * 86400))
-    images = "ghcr.io/manojmkss/light_nvr-backend:0.4.13\nghcr.io/manojmkss/light_nvr-backend:0.4.14\nredis:7\n"
+    images = "ghcr.io/manojmkss/imprahari-backend:0.4.13\nghcr.io/manojmkss/imprahari-backend:0.4.14\nredis:7\n"
     real = host.run
 
     def run(args, timeout=60, env=None):
@@ -307,14 +307,14 @@ def test_daily_clean_prunes_only_unused_lightnvr_images_and_old_tmp_files(tmp_pa
             return 0, images
         if args[:4] == ["docker", "ps", "-a", "--format"]:
             host.calls.append((args, {}))
-            return 0, "ghcr.io/manojmkss/light_nvr-backend:0.4.14\n"
+            return 0, "ghcr.io/manojmkss/imprahari-backend:0.4.14\n"
         return real(args, timeout, env)
 
     g.run = run
     clock.t = time.mktime(time.strptime(time.strftime("%Y-%m-%d 03:31", time.localtime(clock.t)), "%Y-%m-%d %H:%M"))
     g.check()
     removed = [a[3] for a, _ in host.calls if a[:3] == ["docker", "image", "rm"]]
-    assert removed == ["ghcr.io/manojmkss/light_nvr-backend:0.4.13"]
+    assert removed == ["ghcr.io/manojmkss/imprahari-backend:0.4.13"]
     assert not old.exists() and new.exists()
     assert g.state["last_clean"]["reason"] == "daily"
     g.check()
@@ -343,12 +343,12 @@ def test_install_writes_the_service_for_this_checkout_and_off_removes_it(tmp_pat
         """))
     (bin_dir / "systemctl").chmod(0o755)
     (tmp_path / "run-systemd").mkdir()
-    unit, journald = tmp_path / "lightnvr-guardian.service", tmp_path / "journald.d" / "lightnvr.conf"
+    unit, journald = tmp_path / "imprahari-guardian.service", tmp_path / "journald.d" / "imprahari.conf"
 
     def install(env_text=""):
         (repo / ".env").write_text(env_text)
-        script = (f'set -euo pipefail; export PATH="{bin_dir}:$PATH" LIGHTNVR_SYSTEMD_RUN="{tmp_path}/run-systemd" '
-                  f'LIGHTNVR_GUARDIAN_UNIT="{unit}" LIGHTNVR_JOURNALD_CONF="{journald}"; ENV_FILE="{repo}/.env"; '
+        script = (f'set -euo pipefail; export PATH="{bin_dir}:$PATH" IMPRAHARI_SYSTEMD_RUN="{tmp_path}/run-systemd" '
+                  f'IMPRAHARI_GUARDIAN_UNIT="{unit}" IMPRAHARI_JOURNALD_CONF="{journald}"; ENV_FILE="{repo}/.env"; '
                   f'source "{lib}"; install_guardian "{repo}"; echo "STATE=$GUARDIAN_STATE"')
         out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
         assert out.returncode == 0, out.stderr
@@ -356,13 +356,13 @@ def test_install_writes_the_service_for_this_checkout_and_off_removes_it(tmp_pat
 
     assert "STATE=on" in install()
     text = unit.read_text()
-    assert f'"{repo}/scripts/guardian/lightnvr_guardian.py" --repo "{repo}"' in text
+    assert f'"{repo}/scripts/guardian/imprahari_guardian.py" --repo "{repo}"' in text
     assert "@REPO@" not in text and "@PYTHON@" not in text
     assert "SystemMaxUse=200M" in journald.read_text()
     calls = log.read_text().splitlines()
-    assert "daemon-reload" in calls and "enable lightnvr-guardian" in calls and calls[-1] == "restart lightnvr-guardian"
+    assert "daemon-reload" in calls and "enable imprahari-guardian" in calls and calls[-1] == "restart imprahari-guardian"
     log.write_text("")
     assert "STATE=on" in install()  # an update: restarted on the new code, nothing rewritten
-    assert log.read_text().splitlines() == ["enable lightnvr-guardian", "restart lightnvr-guardian"]
+    assert log.read_text().splitlines() == ["enable imprahari-guardian", "restart imprahari-guardian"]
     assert "STATE=off" in install("GUARDIAN=off\n")
     assert not unit.exists()

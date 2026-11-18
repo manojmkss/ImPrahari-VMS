@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Downloads the ONNX model the optional AI layer uses for local (CPU) object
-    detection, into the lightnvr-data Docker volume at /data/models.
+    detection, into the imprahari-data Docker volume at /data/models.
 
 .DESCRIPTION
     Windows equivalent of scripts/fetch-ai-models.sh - same result, no Git Bash
@@ -53,7 +53,7 @@ function Write-Step { param([string]$m) Write-Host "==> $m" -ForegroundColor Cya
 function Write-Warn2 { param([string]$m) Write-Host "!!  $m" -ForegroundColor Yellow }
 function Write-Die { param([string]$m) Write-Host "ERROR: $m" -ForegroundColor Red; exit 1 }
 
-$Volume = "lightnvr-data"
+$Volume = "imprahari-data"
 
 # ---------------------------------------------------------------------------
 # Preconditions
@@ -68,7 +68,7 @@ try {
 
 docker volume inspect $Volume 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    Write-Die "Docker volume '$Volume' not found - start LightNVR once first (docker compose up -d), then re-run this."
+    Write-Die "Docker volume '$Volume' not found - start ImPrahari once first (docker compose up -d), then re-run this."
 }
 
 function Test-ModelInVolume {
@@ -138,7 +138,7 @@ shutil.copy(out, dest)
 print(f"Installed {dest}")
 '@
 
-$tmp = Join-Path ([System.IO.Path]::GetTempPath()) "lightnvr-export-$([guid]::NewGuid().ToString('N'))"
+$tmp = Join-Path ([System.IO.Path]::GetTempPath()) "imprahari-export-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
     # -Encoding ascii: PowerShell 5.1 writes UTF-16 with a BOM by default, which

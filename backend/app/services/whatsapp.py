@@ -3,7 +3,7 @@ import httpx
 # Official WhatsApp Business Cloud API only - there's no free, simple bot API
 # for WhatsApp like Telegram's. This requires the user to have already set up
 # a Meta Developer app + verified WhatsApp Business Account and obtained a
-# phone_number_id + access token outside LightNVR. Unofficial automation
+# phone_number_id + access token outside ImPrahari. Unofficial automation
 # (e.g. driving a real WhatsApp Web session) is against WhatsApp's Terms of
 # Service and risks the user's account being banned, so it's intentionally
 # not implemented here.

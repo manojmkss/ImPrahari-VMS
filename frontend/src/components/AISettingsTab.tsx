@@ -567,7 +567,7 @@ export function AISettingsTab() {
                 This records information that identifies real people — visitors, neighbours, delivery
                 staff — not just your own household. In many places (India's DPDP Act, the EU's GDPR, and
                 several US states) that carries legal duties, and consent may be required. It is your
-                responsibility, as the operator, to use it lawfully. Everything else in LightNVR works
+                responsibility, as the operator, to use it lawfully. Everything else in ImPrahari works
                 without this.
               </p>
               <label style={{ display: "flex", gap: 8, alignItems: "center" }}>

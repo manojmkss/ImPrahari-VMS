@@ -15,7 +15,7 @@ from app.services.hq_stream import hq_frame_bus, hq_stream_manager
 # Live View and the public, token-scoped Kiosk view both call these so the two
 # never drift out of sync with each other.
 
-MJPEG_BOUNDARY = "lightnvrframe"
+MJPEG_BOUNDARY = "imprahariframe"
 
 # How long to wait for a new frame before re-sending the last one to hold the
 # connection open. Comfortably under the 60s idle timeout proxies typically

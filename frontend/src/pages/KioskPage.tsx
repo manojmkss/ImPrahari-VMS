@@ -20,7 +20,7 @@ const STATS_POLL_MS = 2000;
 // itself since it re-renders (rather than remounts) every time the 10s poll
 // below refreshes `view`.
 function KioskContent({ token, view }: { token: string; view: KioskPublicView }) {
-  const { layout, layoutId, setLayoutId, page, setPage } = useGridLayout(`lightnvr_kiosk_layout_${token}`);
+  const { layout, layoutId, setLayoutId, page, setPage } = useGridLayout(`imprahari_kiosk_layout_${token}`);
   const [stats, setStats] = useState<StreamStat[]>([]);
   const endpoints = useMemo(() => createKioskEndpoints(token), [token]);
 
@@ -53,7 +53,7 @@ function KioskContent({ token, view }: { token: string; view: KioskPublicView })
         layout={layout}
         page={page}
         onPageChange={setPage}
-        orderStorageKey={`lightnvr_kiosk_order_${token}`}
+        orderStorageKey={`imprahari_kiosk_order_${token}`}
         emptyMessage="No cameras configured for this display."
       />
     </div>

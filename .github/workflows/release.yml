@@ -28,9 +28,9 @@ permissions:
   packages: write   # push images to GHCR
 
 env:
-  # GHCR requires lowercase names; the repo is "Light_NVR" so this is spelled
-  # out lowercase rather than derived from ${{ github.repository }}.
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/light_nvr
+  # GHCR requires lowercase names; the repo is "ImPrahari-VMS", so the images are
+  # named "imprahari-..." here rather than derived from ${{ github.repository }}.
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/imprahari
 
 jobs:
   build:
@@ -156,8 +156,8 @@ jobs:
           body: |
             Prebuilt images for this release (tags without the leading "v"):
 
-            - `ghcr.io/${{ github.repository_owner }}/light_nvr-backend` and `light_nvr-frontend` (amd64 + arm64)
-            - `ghcr.io/${{ github.repository_owner }}/light_nvr-ai-worker` `-cpu` (amd64 + arm64), `-openvino` and `-cuda` (amd64)
+            - `ghcr.io/${{ github.repository_owner }}/imprahari-backend` and `imprahari-frontend` (amd64 + arm64)
+            - `ghcr.io/${{ github.repository_owner }}/imprahari-ai-worker` `-cpu` (amd64 + arm64), `-openvino` and `-cuda` (amd64)
 
             Upgrade an existing install:
 

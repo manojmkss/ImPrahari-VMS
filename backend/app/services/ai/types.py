@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-# Where locally-run models live. This is inside the `lightnvr-data` named
+# Where locally-run models live. This is inside the `imprahari-data` named
 # volume, so a model downloaded once survives container rebuilds and isn't
 # re-fetched on every upgrade.
 MODEL_DIR = "/data/models"

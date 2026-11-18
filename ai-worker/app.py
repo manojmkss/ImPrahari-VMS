@@ -1,4 +1,4 @@
-"""LightNVR AI worker ("LightNVR Vision") - the local AI service.
+"""ImPrahari AI worker ("ImPrahari Vision") - the local AI service.
 
 Runs object detection and face recognition over HTTP, either as a sidecar
 next to the NVR (isolating AI from recording: a crash or out-of-memory here
@@ -48,7 +48,7 @@ PROVIDER = os.environ.get("AI_WORKER_PROVIDER", "auto")  # auto | cuda | openvin
 SLOTS = int(os.environ.get("AI_WORKER_SLOTS", "0") or 0)  # 0 = decide from the device
 VARIANT = os.environ.get("AI_WORKER_VARIANT", "cpu")
 
-app = FastAPI(title="LightNVR Vision", version="2.0.0")
+app = FastAPI(title="ImPrahari Vision", version="2.0.0")
 
 _detectors: dict[str, object] = {}
 _faces = None
@@ -164,7 +164,7 @@ def device_options() -> list[dict]:
             why = "the AI runtime reports no devices"
         except Exception as exc:
             why = f"the AI runtime couldn't load ({str(exc)[:160]})"
-        reason = f"Nothing can run: {why}. Update to the latest LightNVR; if it persists, report it."
+        reason = f"Nothing can run: {why}. Update to the latest ImPrahari; if it persists, report it."
         return [{"id": d, "label": DEVICE_NAMES[d], "name": DEVICE_NAMES[d], "available": False,
                  "reason": reason, "result": _engine["results"].get(d)} for d in DEVICES]
     out = [{"id": "cpu", "available": True, "reason": None}]
@@ -313,7 +313,7 @@ def _face_engine():
         from app.vision.face import FaceEngine
 
         if not (model_registry.present("yunet", MODEL_DIR) and model_registry.present("sface", MODEL_DIR)):
-            raise FileNotFoundError("Face models not downloaded - enable faces in LightNVR (Settings -> AI)")
+            raise FileNotFoundError("Face models not downloaded - enable faces in ImPrahari (Settings -> AI)")
         _faces = FaceEngine(model_registry.path_for("yunet", MODEL_DIR), model_registry.path_for("sface", MODEL_DIR))
     return _faces
 
@@ -346,7 +346,7 @@ async def _decode(image: UploadFile) -> np.ndarray:
 @app.on_event("startup")
 async def startup() -> None:
     os.makedirs(MODEL_DIR, exist_ok=True)
-    logger.info("LightNVR Vision (%s image) starting; ONNX providers available: %s", VARIANT, available_providers())
+    logger.info("ImPrahari Vision (%s image) starting; ONNX providers available: %s", VARIANT, available_providers())
     choice = LEGACY_PROVIDER.get(PROVIDER, "auto")
     try:
         with open(ENGINE_FILE, encoding="utf-8") as f:
@@ -521,7 +521,7 @@ async def fetch_model(name: str):
 
 # ── which detection model (Settings -> AI -> AI engine -> Detection model) ───
 #
-# Ready-made ONNX models published by LightNVR, downloaded only when the user
+# Ready-made ONNX models published by ImPrahari, downloaded only when the user
 # asks, checked against the checksum this version ships with, timed on the
 # device in use, and switched to without a restart.
 

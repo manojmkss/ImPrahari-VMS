@@ -165,7 +165,7 @@ def _describer(tmp_path, env_text, cores, ram_mb, nvidia=False, free_gb=100):
     script = textwrap.dedent(f"""
         set -euo pipefail
         ENV_FILE="{env}"
-        export LIGHTNVR_CORES={cores} LIGHTNVR_RAM_MB={ram_mb} LIGHTNVR_FREE_GB={free_gb}
+        export IMPRAHARI_CORES={cores} IMPRAHARI_RAM_MB={ram_mb} IMPRAHARI_FREE_GB={free_gb}
         DOCKER=(false)  # no describer image already pulled
         HW_NVIDIA={str(nvidia).lower()} HW_NVIDIA_TOOLKIT={str(nvidia).lower()}
         source "{LIB_ENV}"

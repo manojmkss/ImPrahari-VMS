@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="nvr_background">#0F1216</color>
+    <!-- The logo's background (docs/brand/imprahari-logo.png). -->
+    <color name="launcher_background">#011129</color>
 </resources>

@@ -156,7 +156,7 @@ export function AIEngineCard({ settings, onSettings }: { settings: AISettings; o
           />
           <span style={{ flex: 1 }}>
             <span style={{ fontWeight: selected === "other_pc" ? 600 : 400 }}>Another PC on my network</span>
-            <span style={{ color: "var(--text-dim)", fontSize: 12 }}> — a PC (e.g. with a gaming GPU) running the LightNVR AI worker</span>
+            <span style={{ color: "var(--text-dim)", fontSize: 12 }}> — a PC (e.g. with a gaming GPU) running the ImPrahari AI worker</span>
           </span>
         </label>
         {selected === "other_pc" && (
@@ -181,7 +181,7 @@ export function AIEngineCard({ settings, onSettings }: { settings: AISettings; o
               </button>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
-              The LightNVR <code>ai-worker</code> (the <code>ai-worker/</code> folder of the project) - not LM Studio or
+              The ImPrahari <code>ai-worker</code> (the <code>ai-worker/</code> folder of the project) - not LM Studio or
               Ollama, which are for descriptions. Pictures go to that PC on your own network only.
             </div>
             {onOtherPc && st && !st.reachable && (
@@ -217,10 +217,10 @@ export function AIEngineCard({ settings, onSettings }: { settings: AISettings; o
         <div style={{ fontSize: 13, marginTop: 10, padding: "6px 8px", borderRadius: 6, background: "var(--bg)" }}>
           💡 The detection model ({(onOtherPc ? remote : local)!.model}) isn&apos;t downloaded yet, so nothing can be
           detected. Download one under <strong>Detection model</strong> below (one click), or without internet access
-          on the AI service, run this on {onOtherPc ? "that PC" : "the machine running LightNVR"}:
+          on the AI service, run this on {onOtherPc ? "that PC" : "the machine running ImPrahari"}:
           <code style={{ display: "block", padding: "6px 8px", marginTop: 4, background: "var(--bg-alt, #0d1117)", borderRadius: 4 }}>
             {modelCommand((onOtherPc ? remote : local)!.model ?? "yolov8n").primary}
-            {onOtherPc ? " --volume lightnvr-ai-worker-models" : ""}
+            {onOtherPc ? " --volume imprahari-ai-worker-models" : ""}
           </code>
           <details style={{ marginTop: 4 }}>
             <summary style={{ cursor: "pointer", fontSize: 12 }}>

@@ -62,7 +62,7 @@ async def create_backup() -> BackupInfo:
 
     os.makedirs(base_dir, exist_ok=True)
     timestamp = datetime.now(timezone.utc)
-    filename = f"lightnvr_backup_{timestamp.strftime('%Y%m%d_%H%M%S')}.db"
+    filename = f"imprahari_backup_{timestamp.strftime('%Y%m%d_%H%M%S')}.db"
     destination = os.path.join(base_dir, filename)
 
     try:

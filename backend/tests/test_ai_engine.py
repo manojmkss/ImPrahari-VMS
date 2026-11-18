@@ -45,7 +45,7 @@ def test_hints_explain_the_missing_step():
 def worker(tmp_path, monkeypatch):
     monkeypatch.setenv("AI_WORKER_MODEL_DIR", str(tmp_path / "models"))
     monkeypatch.setenv("AI_WORKER_ENGINE_FILE", str(tmp_path / "ai-engine.json"))
-    spec = importlib.util.spec_from_file_location("lightnvr_worker_under_test", WORKER)
+    spec = importlib.util.spec_from_file_location("imprahari_worker_under_test", WORKER)
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
@@ -193,7 +193,7 @@ def _configure(tmp_path, env_text="", lspci="", dri=False, nvidia=False, toolkit
     env.write_text(env_text)
     script = textwrap.dedent(f"""
         set -euo pipefail
-        export PATH="{stubs}:$PATH" LIGHTNVR_DEV_DRI="{dev}"
+        export PATH="{stubs}:$PATH" IMPRAHARI_DEV_DRI="{dev}"
         ENV_FILE="{env}"
         DOCKER=(docker)
         source "{LIB_ENV}"

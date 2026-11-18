@@ -56,6 +56,9 @@ button, input, select {
 }
 
 .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 18px;
   font-weight: 700;
   padding: 0 20px 16px;
@@ -803,6 +806,22 @@ tr:last-child td {
 .login-box h1 {
   text-align: center;
   margin-bottom: 24px;
+}
+
+/* The ImPrahari emblem (frontend/public/icons, made from docs/brand). */
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.login-mark {
+  display: block;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 12px;
+  border-radius: 20px;
 }
 
 .error-text {

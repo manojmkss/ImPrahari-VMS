@@ -4,13 +4,13 @@ services:
     # `docker compose pull` fetches it - a ~1-minute install with no build.
     # `build:` is kept so `docker compose up -d --build` still builds from
     # source (for development, or if a release hasn't been published yet).
-    # Pin a specific release with LIGHTNVR_VERSION=v0.1.0 in .env if you'd
+    # Pin a specific release with IMPRAHARI_VERSION=v0.1.0 in .env if you'd
     # rather not track :latest.
-    image: ghcr.io/manojmkss/light_nvr-backend:${LIGHTNVR_VERSION:-latest}
+    image: ghcr.io/manojmkss/imprahari-backend:${IMPRAHARI_VERSION:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: lightnvr-backend
+    container_name: imprahari-backend
     # Docker's own log for this container, capped (it otherwise grows forever).
     logging:
       driver: json-file
@@ -39,7 +39,7 @@ services:
     # with overrides (see .env.example). Accounts, email, storage, and
     # retention are all configured from the web UI after first boot instead.
     environment:
-      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////data/lightnvr.db}
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////data/imprahari.db}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
@@ -60,7 +60,7 @@ services:
       # named volume lives on the Docker VM's native ext4 filesystem where
       # those work correctly. Back up / move the DB via the in-app Backup
       # feature (Settings -> Backup) rather than reaching for the file directly.
-      - lightnvr-data:/data
+      - imprahari-data:/data
       - ./storage:/storage
       # /mnt/primary and /mnt/backup are where recordings are written (primary)
       # and, optionally, failed over to (backup). The HOST side of each is an
@@ -94,16 +94,16 @@ services:
       retries: 5
       start_period: 15s
     networks:
-      - lightnvr
+      - imprahari
 
   frontend:
-    image: ghcr.io/manojmkss/light_nvr-frontend:${LIGHTNVR_VERSION:-latest}
+    image: ghcr.io/manojmkss/imprahari-frontend:${IMPRAHARI_VERSION:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
-    container_name: lightnvr-frontend
+    container_name: imprahari-frontend
     # Docker's own log for this container, capped (it otherwise grows forever).
     logging:
       driver: json-file
@@ -117,11 +117,11 @@ services:
     depends_on:
       - backend
     networks:
-      - lightnvr
+      - imprahari
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: lightnvr-nginx
+    container_name: imprahari-nginx
     # Docker's own log for this container, capped (it otherwise grows forever).
     logging:
       driver: json-file
@@ -158,14 +158,14 @@ services:
       - ./certs:/certs
     command: ["/bin/sh", "/start.sh"]
     networks:
-      - lightnvr
+      - imprahari
 
 volumes:
   # Named volume backing /data (see the backend service's volumes for why).
   # Explicit name so it's stable regardless of the compose project name.
-  lightnvr-data:
-    name: lightnvr-data
+  imprahari-data:
+    name: imprahari-data
 
 networks:
-  lightnvr:
+  imprahari:
     driver: bridge
