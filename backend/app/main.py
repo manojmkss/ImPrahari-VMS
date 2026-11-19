@@ -202,7 +202,7 @@ async def lifespan(app: FastAPI):
     await ptz_service.shutdown()
 
 
-app = FastAPI(title="ImPrahari VMS API", version="0.4.23", lifespan=lifespan)
+app = FastAPI(title="ImPrahari VMS API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

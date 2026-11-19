@@ -6,6 +6,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-18
+
+The first final release, under the new name **ImPrahari VMS**: live view and
+playback on one media engine, continuous and motion recording, AI detection
+with visit review, faces, alerts, the host guardian, the Android app and Home
+Assistant integration, all from the 0.x series, now with a name and a logo of
+its own.
+
 ### Added
 - **Android app: save a clip from playback** (⬇ Save). Pick the start and
   end on a trim bar or by 5-second steps, up to 2 hours; optionally convert
@@ -14,11 +22,19 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Uses the NVR's existing clip export, now covered by tests
   (`backend/tests/test_clip_export.py`).
 
+### Fixed
+- **Saving a clip of the last few minutes** (web and Android) no longer says
+  "No footage found": the footage still being recorded (up to 5 minutes, with
+  no recording entry until its segment closes) is now included, in full
+  quality, just as playback already showed it.
+
 ### Changed
 - **New logo**: the ImPrahari shield emblem is the web app's icon (browser tab,
   `favicon.ico`, installed app, login and setup pages, sidebar, push
   notifications and their status-bar badge) and the Android app's icon
-  (launcher, Android 13+ themed icon, sign-in screen). Logo files and where
+  (launcher, Android 13+ themed icon, sign-in screen; a one-colour padlock
+  shield with the eye from the logo for the status bar, Quick Settings tile
+  and notifications). Logo files and where
   each is used: `docs/brand/`. `scripts/make-brand-icons.py` remakes every
   icon from the logo.
 - **The project is now called ImPrahari VMS** (video monitoring solution).
@@ -43,7 +59,7 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rename shows the setup page, run it once more - the second run brings your
   data over (the updater from before the rename can't).
 - **Web browsers** stay logged in and keep their layouts.
-- **Android app:** the new app (`com.imprahari.app`, 0.4.0) installs next to
+- **Android app:** the new app (`com.imprahari.app`, 1.0.0) installs next to
   the old one; sign in once, then uninstall the old app.
 - **Home Assistant:** remove the old integration, copy
   `custom_components/imprahari` in, restart, and add *ImPrahari VMS* again.

@@ -117,3 +117,37 @@ def test_ranges_with_nothing_to_save_are_refused_clearly(nvr):
     with pytest.raises(HTTPException) as exc:
         _export(maker, camera_id=99, start=t0, end=t0 + 10)
     assert exc.value.status_code == 404
+
+
+@pytest.fixture()
+def growing(nvr, tmp_path):
+    """A 15 s segment still being written (no Recording row yet), 5 s after the
+    recordings end, its last frame written at t0+60."""
+    import os
+
+    from app.services.active_segment import active_segment_registry
+
+    t0, maker = nvr
+    path = tmp_path / "growing.mp4"
+    _segment(path, 15, 200)
+    os.utime(path, (t0 + 60, t0 + 60))
+    active_segment_registry.set(1, str(path), datetime.fromtimestamp(t0 + 45, UTC))
+    yield t0, maker
+    active_segment_registry.clear(1)
+
+
+@needs_ffmpeg
+def test_the_last_minutes_still_being_recorded_can_be_saved(growing):
+    t0, maker = growing
+    r = _export(maker, camera_id=1, start=t0 + 48, end=t0 + 58, h264=True)
+    duration, _ = _probe(r.path)
+    assert abs(duration - 10) < 0.5, duration
+
+
+@needs_ffmpeg
+def test_a_range_from_recordings_into_the_live_segment_joins_both(growing):
+    t0, maker = growing
+    # 10 s of the second recording, the 5 s gap skipped, 15 s of the live segment.
+    r = _export(maker, camera_id=1, start=t0 + 30, end=t0 + 60, h264=True)
+    duration, _ = _probe(r.path)
+    assert abs(duration - 25) < 0.7, duration

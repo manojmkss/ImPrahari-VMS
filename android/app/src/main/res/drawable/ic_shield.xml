@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Quick Settings tile / widget glyph: a shield. -->
+<!-- The ImPrahari logo as a small one-colour glyph (status bar, Quick Settings tile,
+     widget, download notification): the padlock shield with the camera eye. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- padlock shackle -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:pathData="M8.4,7V5.6a3.6,3.6 0 0,1 7.2,0V7" />
+    <!-- shield with the eye: ring cut out, iris kept, pupil cut out -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,2L4,5v6c0,5.25 3.4,10.15 8,11.4c4.6,-1.25 8,-6.15 8,-11.4V5L12,2z" />
+        android:fillType="evenOdd"
+        android:pathData="M12,5.6L4.6,8.2v4.6c0,4.6 3.1,8.5 7.4,9.7c4.3,-1.2 7.4,-5.1 7.4,-9.7V8.2L12,5.6z M7.6,13.6a4.4,4.4 0 1,0 8.8,0a4.4,4.4 0 1,0 -8.8,0z M9.1,13.6a2.9,2.9 0 1,0 5.8,0a2.9,2.9 0 1,0 -5.8,0z M10.9,13.6a1.1,1.1 0 1,0 2.2,0a1.1,1.1 0 1,0 -2.2,0z" />
 </vector>

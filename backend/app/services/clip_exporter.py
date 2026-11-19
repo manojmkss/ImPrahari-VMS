@@ -48,6 +48,51 @@ def select_segments(
     return segs
 
 
+async def unregistered_segments(
+    camera_id: int, start_ts: float, end_ts: float, covered_until: float, workdir: str
+) -> tuple[list[tuple[str, float, float, float]], list[str]]:
+    """The footage of [start, end] that has no Recording row yet: the segment
+    being written right now and ones still being finalized (up to 5 minutes
+    and more). Each is copied as it stands (a growing fragmented MP4 copies up
+    to its last complete fragment), main stream, full quality. Only the part
+    after `covered_until` (the end of the registered recordings) is used, so a
+    segment registered meanwhile is never exported twice.
+
+    Returns the select_segments-style tuples and the temporary copies, which
+    the caller removes when the export is done.
+    """
+    from app.services.active_segment import active_segment_registry
+    from app.services.ffmpeg_recorder import probe_duration
+    from app.services.playback import _has_data, _remux, _ts
+
+    want_from = max(start_ts, covered_until)
+    found = active_segment_registry.closing(camera_id)
+    active = active_segment_registry.get(camera_id)
+    if active is not None:
+        found.append(active)
+    segs: list[tuple[str, float, float, float]] = []
+    temps: list[str] = []
+    for i, seg in enumerate(sorted(found, key=lambda s: s.started_at)):
+        if not _has_data(seg.file_path):
+            continue
+        seg_end = _ts(seg.ended_at) if seg.ended_at else os.path.getmtime(seg.file_path)
+        if _ts(seg.started_at) - 5 > end_ts or seg_end <= want_from:
+            continue
+        copy = os.path.join(workdir, f"growing_{camera_id}_{i}.mp4")
+        if not await _remux(seg.file_path, copy):
+            continue
+        temps.append(copy)
+        dur = await probe_duration(copy)
+        if not dur:
+            continue
+        origin = seg_end - dur  # its newest frame was written at seg_end
+        seg_in = max(0.0, want_from - origin)
+        seg_out = min(dur, end_ts - origin)
+        if seg_out - seg_in > 0.1:
+            segs.append((copy, seg_in, seg_out, dur))
+    return segs, temps
+
+
 def _write_concat_file(segs: list[tuple[str, float, float, float]], list_path: str) -> None:
     # ffconcat with per-file inpoint/outpoint lets a single stream-copy pass
     # trim the first/last segment and join the middle ones untouched.

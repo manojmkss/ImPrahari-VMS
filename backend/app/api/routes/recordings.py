@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import tempfile
 import zipfile
 from datetime import datetime, timezone
@@ -17,7 +18,7 @@ from app.models.camera import Camera
 from app.models.recording import Recording
 from app.models.user import User
 from app.schemas.recording import BulkDeleteRequest, BulkDeleteResponse, RecordingOut
-from app.services.clip_exporter import export_clip, rec_end_unix, select_segments
+from app.services.clip_exporter import export_clip, rec_end_unix, select_segments, unregistered_segments
 from app.services.retention import purge_recording
 
 router = APIRouter(prefix="/api/recordings", tags=["recordings"])
@@ -39,6 +40,10 @@ def _safe_filename(suggested: str | None, fallback: str) -> str:
     if not base:
         base = fallback
     return f"{base[:120]}.mp4"
+
+
+def _remove_tree(path: str) -> None:
+    shutil.rmtree(path, ignore_errors=True)
 
 
 def _remove_quietly(path: str) -> None:
@@ -136,16 +141,25 @@ async def export_clip_download(
     candidates = [r for r in result.scalars().all() if rec_end_unix(r) >= start]
 
     segs = select_segments(candidates, start, end)
+    # The last few minutes are in a segment still being written (no Recording
+    # row until it closes): take them from there, like playback does.
+    covered = max((rec_end_unix(r) for r in candidates if r.file_path and os.path.exists(r.file_path)),
+                  default=float("-inf"))
+    workdir = tempfile.mkdtemp(prefix="clip_")
+    growing, temps = await unregistered_segments(camera_id, start, end, covered, workdir)
+    segs += growing
     if not segs:
+        _remove_tree(workdir)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No footage found in that time range")
 
-    fd, out_path = tempfile.mkstemp(suffix=".mp4", prefix="clip_")
-    os.close(fd)
+    out_path = os.path.join(workdir, "clip.mp4")
     try:
         await export_clip(segs, out_path, encode_h264=h264)
     except RuntimeError as exc:
-        _remove_quietly(out_path)
+        _remove_tree(workdir)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Clip export failed: {exc}")
+    for t in temps:  # the clip is made; the copies aren't needed while it downloads
+        _remove_quietly(t)
 
     fallback = f"{camera.name}_{int(start)}-{int(end)}"
     filename = _safe_filename(name, fallback)
@@ -153,7 +167,7 @@ async def export_clip_download(
         out_path,
         media_type="video/mp4",
         filename=filename,
-        background=BackgroundTask(_remove_quietly, out_path),
+        background=BackgroundTask(_remove_tree, workdir),
     )
 
 
