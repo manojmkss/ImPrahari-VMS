@@ -6,6 +6,7 @@ import time
 import cv2
 
 from app.services.camera_gate import camera_gate
+from app.services.gpu_video import FrameReader
 
 from app.services.frame_bus import FrameBus
 from app.services.stream_stats import stream_stats
@@ -29,17 +30,17 @@ IDLE_GRACE_SECONDS = 8.0
 # sits above 4K so real cameras are never downscaled.
 MAX_DIMENSION = 4096
 
-# Serve every Nth decoded frame. The main stream exists for clarity when a user
-# is staring at one camera, not for high frame rate, so halving it keeps CPU on
-# a low-power host in check.
-FRAME_SKIP = 2
+# Pictures a second handed over. The main stream is for clarity (faces, a
+# maximised tile), not frame rate; the frames in between are decoded on the
+# GPU and dropped there, never converted.
+HQ_FPS = 12
 
 
 class _HQDecoder:
     """One background OS thread decoding a single camera's main stream on
-    demand. cv2.VideoCapture blocks, so like StreamViewer it can't live on the
-    asyncio loop. Reference counted by HQStreamManager: it starts on the first
-    viewer and is torn down once no viewers remain past the idle grace window.
+    demand (ffmpeg, on the GPU when there is one - services/gpu_video.py).
+    Reference counted by HQStreamManager: it starts on the first viewer and is
+    torn down once no viewers remain past the idle grace window.
     """
 
     def __init__(self, camera_id: int, url: str, loop: asyncio.AbstractEventLoop):
@@ -65,9 +66,13 @@ class _HQDecoder:
                 # so it never adds to the load on a camera that's struggling.
                 if not camera_gate.wait_thread(self.camera_id, essential=False, stop=self._stop):
                     break
-                cap = cv2.VideoCapture(self.url)
+                cap = FrameReader(self.url, fps=HQ_FPS)
+                if cap.paused:  # "GPU only" and the GPU isn't working
+                    self._stop.wait(5)
+                    continue
                 if not cap.isOpened():
-                    logger.warning("HQ: could not open main stream for camera %s", self.camera_id)
+                    logger.warning("HQ: could not open main stream for camera %s: %s", self.camera_id,
+                                   cap.error[:200])
                     cap.release()
                     camera_gate.failed(self.camera_id, "could not open")
                     self._stop.wait(backoff)
@@ -82,15 +87,11 @@ class _HQDecoder:
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 30)
 
-    def _decode_loop(self, cap: "cv2.VideoCapture") -> None:
-        frame_count = 0
+    def _decode_loop(self, cap: FrameReader) -> None:
         while not self._stop.is_set():
             ok, frame = cap.read()
             if not ok:
                 break
-            frame_count += 1
-            if frame_count % FRAME_SKIP != 0:
-                continue
 
             h, w = frame.shape[:2]
             if w > MAX_DIMENSION:

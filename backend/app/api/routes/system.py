@@ -283,7 +283,25 @@ async def update_system_settings(payload: SystemSettingsUpdate, _: User = Depend
             setattr(record, field, value)
         await db.commit()
         await db.refresh(record)
+        if payload.media_gpu_only is not None:
+            from app.services.gpu_video import gpu_video
+
+            gpu_video.gpu_only = bool(record.media_gpu_only)
         return SystemSettingsOut.model_validate(record)
+
+
+@router.get("/media-processing")
+async def get_media_processing(_: User = Depends(get_current_user)):
+    """What decodes the video (Settings -> System -> Media processing):
+    the GPU that was found and proven, or why it's the CPU; and where the AI
+    models run (asked of the AI service)."""
+    from app.services.gpu_video import gpu_video
+
+    from app.api.routes.ai_engine import _engine_of, _settings, _worker
+
+    url, headers, _ = _worker(await _settings())
+    engine, error = await _engine_of(url, headers)  # the AI service is optional
+    return {"video": await asyncio.to_thread(gpu_video.status), "ai": engine, "ai_error": error}
 
 
 @router.post("/push-ntp", response_model=list[NtpPushResultOut])

@@ -1,5 +1,5 @@
 """The visit review (services/visit_review.py): after a visit, the AI goes over
-its main-stream recording at 10 frames a second - names who it knows, tells
+its main-stream recording at the live checks' rate - names who it knows, tells
 strangers from faces that never showed, describes the visit once, replaces its
 pictures with main-stream ones and sends one message per visit. It waits for a
 quiet system, but never forever."""
@@ -32,20 +32,34 @@ def _naive(ts: float) -> datetime:
 # ── how the recording is read ───────────────────────────────────────────────
 
 
-def test_a_short_visit_is_read_at_ten_frames_a_second_throughout():
-    assert vr.plan_rates((0, 90), []) == [(0, 90, 10.0)]
+def test_the_review_reads_at_the_live_checks_rate():
+    # "Check the picture every 500 ms" = 2 pictures a second, here too.
+    assert vr.review_fps(SimpleNamespace(monitor_interval_ms=500)) == 2.0
+    assert vr.review_fps(SimpleNamespace(monitor_interval_ms=1000)) == 1.0
+    assert vr.review_fps(SimpleNamespace(monitor_interval_ms=250)) == 4.0
+    assert vr.review_fps(None) == 2.0
+    assert vr.plan_rates((0, 90), []) == [(0, 90, 2.0)]
+    assert vr.plan_rates((0, 90), [], 1.0) == [(0, 90, 1.0)]
 
 
 def test_a_long_visit_is_read_closely_only_where_someone_was_seen():
-    stretches = vr.plan_rates((0, 600), [(100, 130), (125, 140), (400, 410)])
-    assert stretches == [(0, 95, 2.0), (95, 145, 10.0), (145, 395, 2.0), (395, 415, 10.0), (415, 600, 2.0)]
+    stretches = vr.plan_rates((0, 600), [(100, 130), (125, 140), (400, 410)], 4.0)
+    assert stretches == [(0, 95, 2.0), (95, 145, 4.0), (145, 395, 2.0), (395, 415, 4.0), (415, 600, 2.0)]
+    # Never faster than the live checks over the quiet parts either.
+    slow = vr.plan_rates((0, 600), [(100, 130)], 1.0)
+    assert {fps for _, _, fps in slow} == {1.0}
 
 
 def test_a_very_long_visit_keeps_the_close_looks_within_the_cap(monkeypatch):
     monkeypatch.setattr(vr, "MAX_SECONDS_PER_CAMERA", 60)
     stretches = vr.plan_rates((0, 3000), [(100, 140), (1000, 1100)])
-    assert all(fps == 10.0 for _, _, fps in stretches)
+    assert stretches[0][0] == 95  # the first sighting (with its padding) comes first
     assert sum(b - a for a, b, _ in stretches) == pytest.approx(60)
+
+
+def test_a_faster_check_rate_needs_more_sightings_to_confirm():
+    assert vr.ReviewTracker(fps=2.0).CONFIRM_HITS == 2
+    assert vr.ReviewTracker(fps=4.0).CONFIRM_HITS == 4
 
 
 def test_a_stretch_over_two_segments_reads_both_files(tmp_path):
@@ -270,7 +284,7 @@ def test_a_reviewed_visit_names_people_describes_it_and_uses_main_stream_picture
     vid = _visit(nvr)
     out = asyncio.run(vr.review_visit(vid))
     assert out["status"] == "done"
-    assert 35 <= out["frames"] <= 42  # 4 s of recording at 10 frames a second
+    assert 7 <= out["frames"] <= 9  # 4 s of recording at the live checks' 2 pictures a second
     assert nvr.seen["widths"] == {1280} and nvr.seen["face_widths"] == {1920}  # faces on the full frame
 
     row = _row(nvr, vid)

@@ -6,6 +6,49 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-26
+
+Media processing on the GPU, by design. On a 4-core NVR with three 4MP
+cameras the AI and the visit review kept the processor busy all day; now the
+machine's GPU does the video work and the AI, and the processor is left for
+recording and the web page.
+
+### Changed
+- **Every picture the NVR looks at is decoded on the GPU** (Intel and AMD
+  through VAAPI, NVIDIA through NVDEC): motion and the live AI checks, the
+  closer look at a person on the main stream, the visit review and
+  thumbnails. The GPU also shrinks the pictures and drops the frames nobody
+  uses, so the processor only receives finished pictures, at the rate they
+  are used. The GPU is found by actually decoding a test clip on it, so a
+  VM's virtual display (VMware's comes first on a VM with a GPU passed
+  through), a GPU without the needed codec or a missing driver are skipped.
+  The install and update scripts connect the GPU to the NVR on any machine
+  that has one (`MEDIA_GPU=off` in `.env` to never do so). Without a GPU
+  (a Raspberry Pi, a VM without one) the same pipeline runs on the CPU.
+- **Settings → System → Media processing** shows what decodes the video
+  and where the AI runs, with **GPU only** (on by default): with a GPU
+  found, the processor never takes over; if the GPU stops working you get
+  an alert, motion and AI checks pause (recording carries on) and the GPU
+  is tried again every minute.
+- **The visit review reads at your check rate**: "Check the picture every
+  (milliseconds)" in Settings → AI now sets the review's rate too (500 ms =
+  2 pictures a second, instead of a fixed 10). It never takes more than
+  about half the machine, and a visit still waiting 3 hours after it ended
+  is left with its live pictures and summary instead of being caught up.
+- **No H.265 → H.264 conversion any more**: recordings, playback, kiosk
+  playback and clip downloads are always the camera's own H.264/H.265 at
+  full quality (every current phone and browser plays H.265). The web
+  page's "H.264" export choice is gone; older apps asking for it get the
+  original. Converted playback copies left by older versions are removed.
+- **Faces are found and recognised on the GPU** when the AI engine runs on
+  one (proven with a test search first, the CPU otherwise).
+
+### Fixed
+- **The AI engine's "Auto" really tries the GPU**: it tested the GPU with
+  the default detection model, and when that model wasn't downloaded (any
+  NVR set to another model) the test failed and detection stayed on the
+  CPU without saying why. It now tests with a model that is downloaded.
+
 ## [1.0.0] - 2026-11-18
 
 The first final release, under the new name **ImPrahari VMS**: live view and

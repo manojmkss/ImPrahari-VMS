@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import threading
 import time
 from typing import Awaitable, Callable
@@ -9,6 +8,7 @@ import cv2
 
 from app.services.camera_gate import camera_gate
 from app.services.frame_bus import frame_bus
+from app.services.gpu_video import FrameReader
 from app.services import ptz_state
 from app.services.motion_detector import MotionDetector, MotionSample
 from app.services.status_tracker import heartbeat, mark_offline, mark_online
@@ -17,16 +17,12 @@ from app.services.tamper import TamperDetector
 
 logger = logging.getLogger(__name__)
 
-# Force OpenCV's FFmpeg backend to pull RTSP over TCP. The default is UDP, which
-# on a busy Wi-Fi/LAN drops packets and shows up as the live view freezing or
-# tearing - TCP trades a little latency for a stable, artefact-free stream.
-os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
-
-
 class StreamViewer:
     """Always-on per-camera frame source: decodes the substream (falling back
     to the main stream when no substream is configured) in background OS
-    threads - cv2.VideoCapture blocks, so it can't run on the asyncio loop.
+    threads. The decoding is ffmpeg's, on the GPU when the machine has one
+    (services/gpu_video.py), RTSP over TCP; it hands over DECODE_FPS
+    pictures a second, and the frames in between are never converted.
 
     Per decoded frame it:
     - stores the native-resolution frame on the frame bus (for AI and event
@@ -41,6 +37,11 @@ class StreamViewer:
     LIVE_WIDTH = 640  # live-view JPEG width; height follows the camera's aspect ratio
     LIVE_QUALITY = 80
     LIVE_MAX_FPS = 12
+    # Pictures a second handed over by the decoder: motion analyses ~6 a
+    # second (MotionDetector.SAMPLE_INTERVAL), with room for jitter; the live
+    # JPEG (the MJPEG fallback - the live view itself is the camera's own
+    # stream) follows. Every other frame is dropped before conversion.
+    DECODE_FPS = 8
     NO_FRAME_TIMEOUT = 15.0  # a stream that delivers nothing for this long is treated as dropped
 
     def __init__(
@@ -135,13 +136,20 @@ class StreamViewer:
                 if not camera_gate.wait_thread(self.camera_id, essential=True, stop=self._stop_event):
                     break
                 self.last_activity = time.monotonic()
-                cap = cv2.VideoCapture(self.stream_url)
+                cap = FrameReader(self.stream_url, fps=self.DECODE_FPS)
+                if cap.paused:
+                    # "GPU only" and the GPU isn't working: no pictures until
+                    # it's back (recording carries on). Not the camera's
+                    # fault, so it isn't marked offline.
+                    self._stop_event.wait(5)
+                    continue
+                opened = cap.isOpened()
                 self.last_activity = time.monotonic()
-                if not cap.isOpened():
-                    logger.warning("Could not open stream for camera %s", self.camera_id)
+                if not opened:
+                    logger.warning("Could not open stream for camera %s: %s", self.camera_id, cap.error[:200])
                     cap.release()
                     camera_gate.failed(self.camera_id, "could not open")
-                    # OpenCV gives no reason for the failure; name the likely
+                    # ffmpeg's own reason is often cryptic; name the likely
                     # causes so the Cameras page shows something actionable.
                     self._schedule(mark_offline(
                         self.camera_id,
@@ -170,7 +178,7 @@ class StreamViewer:
                 self._stop_event.wait(backoff)
                 backoff = min(backoff * 2, 60)
 
-    def _decode_loop(self, cap: "cv2.VideoCapture") -> None:
+    def _decode_loop(self, cap: FrameReader) -> None:
         """Reads frames until the stream drops or stop is requested.
 
         Reading and processing run on separate threads, and processing always
@@ -184,10 +192,9 @@ class StreamViewer:
         cond = threading.Condition()
 
         def reader() -> None:
-            # The reader owns `cap` and releases it itself: releasing from
-            # another thread while cap.read() is blocked inside FFmpeg can
-            # crash the process. A stuck read returns on OpenCV's own read
-            # timeout, after which this thread sees "quit" and cleans up.
+            # The reader owns `cap` and releases it itself. A stuck read
+            # returns on ffmpeg's own socket timeout (10 s), after which this
+            # thread sees "quit" and cleans up.
             try:
                 while not self._stop_event.is_set() and not slot["quit"]:
                     ok, frame = cap.read()

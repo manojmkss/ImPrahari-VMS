@@ -687,7 +687,8 @@ export function AISettingsTab() {
                     style={{ maxWidth: 120 }}
                   />
                   <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4 }}>
-                    Only while motion is happening. 500 is a good default. If the computer can't keep up,
+                    Only while motion is happening. 500 is a good default (2 pictures a second). The visit
+                    review afterwards reads the recording at the same rate. If the computer can't keep up,
                     checks are skipped rather than queued, so alerts never fall behind.
                   </p>
                 </div>

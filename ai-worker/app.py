@@ -215,8 +215,17 @@ def _really_on(det, device: str) -> bool:
 
 
 def _model() -> str:
-    """The detection model in use (Settings -> AI -> AI engine -> Detection model)."""
-    return _engine["model"]
+    """The detection model in use (Settings -> AI -> AI engine -> Detection
+    model). If that one isn't downloaded, one that is: the engine choice
+    ("auto" tests the GPU with it) must never fail for want of a file - that
+    used to leave every machine on the CPU."""
+    name = _engine["model"]
+    if os.path.exists(os.path.join(MODEL_DIR, f"{name}.onnx")):
+        return name
+    for other in model_registry.DETECTORS:
+        if os.path.exists(os.path.join(MODEL_DIR, model_registry.detector_file(other))):
+            return other
+    return name
 
 
 def measure(device: str, runs: int = 10, model: str | None = None) -> dict:
@@ -262,7 +271,7 @@ def apply_engine(choice: str) -> dict:
     """Use `choice` (auto | cpu | intel_gpu | nvidia_gpu) from now on. A GPU
     is only kept after it has run real detections; otherwise the CPU stays
     in use and the reason is reported."""
-    global _gpu_fails
+    global _gpu_fails, _faces
     with _engine_lock:
         usable = [d["id"] for d in device_options() if d["available"]]
         note = ""
@@ -288,6 +297,7 @@ def apply_engine(choice: str) -> dict:
         _engine.update(choice=choice, active=target, note=note)
         _gpu_fails = 0
         _detectors.clear()
+        _faces = None  # faces follow the engine onto (or off) the GPU
         _save_engine()
     logger.info("AI engine: choice %s -> running on %s%s", choice, target, f" ({note})" if note else "")
     return engine_status()
@@ -314,7 +324,9 @@ def _face_engine():
 
         if not (model_registry.present("yunet", MODEL_DIR) and model_registry.present("sface", MODEL_DIR)):
             raise FileNotFoundError("Face models not downloaded - enable faces in ImPrahari (Settings -> AI)")
-        _faces = FaceEngine(model_registry.path_for("yunet", MODEL_DIR), model_registry.path_for("sface", MODEL_DIR))
+        _faces = FaceEngine(model_registry.path_for("yunet", MODEL_DIR), model_registry.path_for("sface", MODEL_DIR),
+                            gpu=_engine["active"] != "cpu")
+        logger.info("Face models on the %s", "GPU" if _faces.device == "gpu" else "CPU")
     return _faces
 
 

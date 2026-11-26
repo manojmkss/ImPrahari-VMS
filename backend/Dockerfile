@@ -13,6 +13,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     certbot \
     && rm -rf /var/lib/apt/lists/*
 
+# GPU video decoding (services/gpu_video.py): the VAAPI drivers ffmpeg needs
+# to decode on the machine's GPU - Intel's media driver (Broadwell and newer,
+# from Debian's non-free section) and Mesa's (AMD). They do nothing on a
+# machine without a GPU; the NVR then decodes on the CPU.
+RUN if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+        sed -i 's/^Components: main$/Components: main non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
+        && apt-get update && apt-get install -y --no-install-recommends intel-media-va-driver-non-free mesa-va-drivers \
+        && rm -rf /var/lib/apt/lists/*; \
+    else \
+        apt-get update && apt-get install -y --no-install-recommends mesa-va-drivers && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # Tailscale and cloudflared run as backend-managed subprocesses (started/
 # stopped from Settings -> Remote Access, no docker-compose/.env editing
 # required) rather than separate sidecar containers, so an auth key or

@@ -1,0 +1,12 @@
+# GPU video decoding for the NVR itself (backend/app/services/gpu_video.py):
+# the live checks, motion, the closer look at a person, the visit review and
+# thumbnails are decoded on the machine's Intel or AMD GPU (VAAPI).
+# Written into COMPOSE_FILE by the install/update scripts whenever the host
+# has a /dev/dri render node; the NVR then proves the GPU works before using
+# it, and decodes on the CPU if it doesn't.
+services:
+  backend:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:-109}"

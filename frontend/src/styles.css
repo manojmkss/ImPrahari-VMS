@@ -1853,12 +1853,6 @@ tr:last-child td {
   white-space: nowrap;
 }
 
-.pb-fmt {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .pb-notice {
   font-size: 12.5px;
   padding: 6px 10px;

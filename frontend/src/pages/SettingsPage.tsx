@@ -52,6 +52,7 @@ import { AISettingsTab } from "../components/AISettingsTab";
 import { SecurityModesTab } from "../components/SecurityModesTab";
 import { StorageHealthCards } from "../components/StorageHealthCards";
 import { HealthStorageCard } from "../components/HealthStorageCard";
+import { MediaProcessingCard } from "../components/MediaProcessingCard";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 
@@ -1911,6 +1912,7 @@ function SystemTab() {
 
   return (
     <div style={{ display: "grid", gap: 20, maxWidth: 640 }}>
+      <MediaProcessingCard />
       <div className="card">
         <h2 style={{ marginTop: 0 }}>System</h2>
 

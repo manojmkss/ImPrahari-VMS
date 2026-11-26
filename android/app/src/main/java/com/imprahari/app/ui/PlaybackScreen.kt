@@ -225,11 +225,11 @@ fun PlaybackScreen(
 
     // Saving a clip: trim dialog, then a background download (see ClipDownloads).
     var showClip by remember { mutableStateOf(false) }
-    var pendingClip by remember { mutableStateOf<Triple<Double, Double, Boolean>?>(null) }
+    var pendingClip by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     val clipStatus by ClipDownloads.status.collectAsStateWithLifecycle()
     val app = context.applicationContext as ImPrahariApplication
-    fun saveClip(clip: Triple<Double, Double, Boolean>) =
-        ClipDownloads.start(app, cameraId, cameraName, clip.first, clip.second, clip.third)
+    fun saveClip(clip: Pair<Double, Double>) =
+        ClipDownloads.start(app, cameraId, cameraName, clip.first, clip.second)
     val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val clip = pendingClip
         pendingClip = null
@@ -242,9 +242,9 @@ fun PlaybackScreen(
             spans = spans,
             zone = zone,
             onDismiss = { showClip = false },
-            onSave = { start, end, h264 ->
+            onSave = { start, end ->
                 showClip = false
-                val clip = Triple(start, end, h264)
+                val clip = Pair(start, end)
                 if (ClipDownloads.needsStoragePermission &&
                     context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
                 ) {

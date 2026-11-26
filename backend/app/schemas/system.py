@@ -123,6 +123,7 @@ class SystemTimeOut(BaseModel):
 class SystemSettingsOut(BaseModel):
     timezone: str
     ntp_server: str
+    media_gpu_only: bool = True
 
     class Config:
         from_attributes = True
@@ -131,6 +132,7 @@ class SystemSettingsOut(BaseModel):
 class SystemSettingsUpdate(BaseModel):
     timezone: str | None = None
     ntp_server: str | None = None
+    media_gpu_only: bool | None = None
 
 
 class NtpPushResultOut(BaseModel):

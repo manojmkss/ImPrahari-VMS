@@ -208,6 +208,46 @@ configure_ai_service() {
   AI_VARIANT_CHOSEN="$variant"
 }
 
+# --- GPU video decoding for the NVR itself (every install and update) ------
+#
+# The backend decodes every picture it looks at on the GPU
+# (backend/app/services/gpu_video.py). Connect it: /dev/dri for Intel/AMD
+# (VAAPI), the NVIDIA runtime for NVIDIA. The NVR proves the GPU decodes
+# before using it, so connecting one that can't is harmless.
+#
+#   MEDIA_GPU=off   in .env: never connect a GPU to the backend
+
+MEDIA_GPU_COMPOSE_FILES="docker-compose.gpu.yml docker-compose.gpu.nvidia.yml"
+
+# configure_media_gpu - sets MEDIA_GPU_STATE (vaapi | nvidia | none | off).
+# Run after configure_ai_service (it uses the hardware that one detected).
+configure_media_gpu() {
+  [[ -n "${HW_ARCH:-}" ]] || detect_ai_hardware
+  local current out="" f
+  current="$(env_get COMPOSE_FILE)"
+  [[ -n "$current" ]] || current="docker-compose.yml"
+  local IFS=':'
+  for f in $current; do
+    case " $MEDIA_GPU_COMPOSE_FILES " in *" $f "*) ;; *) out="${out:+$out:}$f" ;; esac
+  done
+  unset IFS
+  MEDIA_GPU_STATE="none"
+  if [[ "$(env_get MEDIA_GPU)" == "off" ]]; then
+    MEDIA_GPU_STATE="off"
+  else
+    if ${HW_DRI:-false}; then
+      out="$out:docker-compose.gpu.yml"
+      env_set RENDER_GID "${HW_RENDER_GID:-109}"
+      MEDIA_GPU_STATE="vaapi"
+    fi
+    if ${HW_NVIDIA:-false} && ${HW_NVIDIA_TOOLKIT:-false}; then
+      out="$out:docker-compose.gpu.nvidia.yml"
+      MEDIA_GPU_STATE="nvidia"
+    fi
+  fi
+  if [[ "$out" == "docker-compose.yml" ]]; then env_unset COMPOSE_FILE; else env_set COMPOSE_FILE "$out"; fi
+}
+
 # --- Descriptions on this machine (every install and update) --------------
 #
 # The describer (docker-compose.describe.yml: Ollama with a small vision

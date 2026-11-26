@@ -57,6 +57,30 @@ from app.core.bootstrap import (
 from app.db.session import check_integrity, init_db
 
 
+async def _start_gpu_video() -> None:
+    """Find the GPU that decodes video (services/gpu_video.py), apply the
+    "GPU only" setting, and have a GPU failure (and its recovery) alert."""
+    from app.db.session import AsyncSessionLocal
+    from app.models.system_settings import SystemSettings
+    from app.services.events import emit_event
+    from app.services.gpu_video import gpu_video
+
+    async with AsyncSessionLocal() as db:
+        s = await db.get(SystemSettings, 1)
+        gpu_video.gpu_only = True if s is None or s.media_gpu_only is None else bool(s.media_gpu_only)
+    loop = asyncio.get_running_loop()
+
+    def say(text: str) -> None:
+        loop.call_soon_threadsafe(lambda: asyncio.ensure_future(emit_event(None, "system", text)))
+
+    gpu_video.on_broken = lambda reason: say(
+        f"The GPU stopped decoding video ({reason}). "
+        + ("Motion and AI checks are paused until it works again (recording carries on); it is tried every minute."
+           if gpu_video.gpu_only else "The CPU is decoding instead, until it works again."))
+    gpu_video.on_back = lambda name: say(f"The GPU decodes video again ({name}).")
+    await asyncio.to_thread(lambda: gpu_video.info)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Armed first, so a hang anywhere in startup (a NAS mount, a DB lock) is
@@ -113,7 +137,8 @@ async def lifespan(app: FastAPI):
     # repairs and keeps those recordings in the background.
     salvage_task = await cleanup_orphaned_files(storage_manager.cache_dir())
     from app.services.transcode_cache import cleanup_on_startup as cleanup_transcode_cache
-    cleanup_transcode_cache()  # regenerable browser-playback transcodes; clear stale ones
+    cleanup_transcode_cache()  # H.264 playback copies of older versions: no longer made, removed
+    await _start_gpu_video()  # before the cameras: they decode with what this finds
     await supervisor.start_all()
     retention_task = asyncio.create_task(retention_loop())
     free_space_task = asyncio.create_task(free_space_loop())
@@ -139,8 +164,8 @@ async def lifespan(app: FastAPI):
     from app.services.incident_store import incident_loop
 
     incident_task = asyncio.create_task(incident_loop())
-    # Goes over each finished visit's main recording at 10 frames a second,
-    # when the system is quiet: names, strangers, description, pictures.
+    # Goes over each finished visit's main recording at the live checks' rate,
+    # on the GPU, when the system is quiet: names, strangers, description, pictures.
     from app.services.visit_review import review_loop
 
     review_task = asyncio.create_task(review_loop())
@@ -202,7 +227,7 @@ async def lifespan(app: FastAPI):
     await ptz_service.shutdown()
 
 
-app = FastAPI(title="ImPrahari VMS API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="ImPrahari VMS API", version="1.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

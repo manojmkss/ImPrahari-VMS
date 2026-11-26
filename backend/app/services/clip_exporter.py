@@ -108,28 +108,21 @@ def _write_concat_file(segs: list[tuple[str, float, float, float]], list_path: s
         f.write("\n".join(lines) + "\n")
 
 
-async def export_clip(segs: list[tuple[str, float, float, float]], out_path: str, encode_h264: bool = False) -> None:
-    """Concatenate + trim the selected segments into out_path. By default a
-    stream copy - no re-encode, so the export keeps the camera's original
-    quality/codec (fast, but an H.265 export won't play in most browsers). With
-    encode_h264=True it re-encodes to H.264 so the downloaded clip plays
-    anywhere, at the cost of CPU + time. Raises RuntimeError on failure.
+async def export_clip(segs: list[tuple[str, float, float, float]], out_path: str) -> None:
+    """Concatenate + trim the selected segments into out_path: a stream copy,
+    never a re-encode, so the clip is the camera's own H.264/H.265 at full
+    quality (and quick). Raises RuntimeError on failure.
     """
     list_path = f"{out_path}.concat.txt"
     _write_concat_file(segs, list_path)
-    if encode_h264:
-        codec_args = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac"]
-        # Re-encoding is far slower than a copy, so give it a longer ceiling.
-        timeout = 1800
-    else:
-        codec_args = ["-c", "copy"]
-        # H.265 labelled hvc1, which Safari / iPhones need to play it (a copied
-        # camera stream is otherwise hev1).
-        from app.services.ffmpeg_recorder import _probe_video_codec
+    codec_args = ["-c", "copy"]
+    # H.265 labelled hvc1, which Safari / iPhones need to play it (a copied
+    # camera stream is otherwise hev1).
+    from app.services.ffmpeg_recorder import _probe_video_codec
 
-        if segs and await _probe_video_codec(segs[0][0]) == "hevc":
-            codec_args += ["-tag:v", "hvc1"]
-        timeout = EXPORT_TIMEOUT_SECONDS
+    if segs and await _probe_video_codec(segs[0][0]) == "hevc":
+        codec_args += ["-tag:v", "hvc1"]
+    timeout = EXPORT_TIMEOUT_SECONDS
     cmd = [
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-f", "concat", "-safe", "0", "-i", list_path,

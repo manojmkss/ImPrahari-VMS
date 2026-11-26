@@ -110,6 +110,27 @@ def test_a_gpu_that_keeps_failing_hands_over_to_the_cpu(worker, monkeypatch):
 
 
 @needs_worker
+def test_auto_tests_the_gpu_with_a_model_that_is_downloaded(worker, monkeypatch):
+    # The default model (yolov8n) was never downloaded on this NVR, yolo26s
+    # was: "auto" used to fail on the missing file and stay on the CPU.
+    models = os.environ["AI_WORKER_MODEL_DIR"]
+    os.makedirs(models, exist_ok=True)
+    open(os.path.join(models, "yolo26s.onnx"), "wb").close()
+    assert worker._engine["model"] == "yolov8n" and worker._model() == "yolo26s"
+    monkeypatch.setattr(worker, "available_providers", lambda: ["OpenVINOExecutionProvider", "CPUExecutionProvider"])
+    monkeypatch.setattr(worker, "_has_dri", lambda: True)
+    tested = []
+
+    def measure(device, runs=10, model=None):
+        tested.append((device, worker._model()))
+        return {"ok": True, "p50_ms": 240.0 if device == "cpu" else 50.0}
+
+    monkeypatch.setattr(worker, "measure", measure)
+    assert worker.apply_engine("auto")["active"] == "intel_gpu"
+    assert tested == [("cpu", "yolo26s"), ("intel_gpu", "yolo26s")]
+
+
+@needs_worker
 def test_detection_model_switches_only_after_it_really_runs(worker, monkeypatch):
     models = os.environ["AI_WORKER_MODEL_DIR"]
     os.makedirs(models, exist_ok=True)
@@ -172,7 +193,8 @@ def test_detection_model_download_is_checked_against_the_pinned_checksum(tmp_pat
 # ── the install/update scripts ───────────────────────────────────────────────
 
 
-def _configure(tmp_path, env_text="", lspci="", dri=False, nvidia=False, toolkit=False, arch="x86_64"):
+def _configure(tmp_path, env_text="", lspci="", dri=False, nvidia=False, toolkit=False, arch="x86_64",
+               media=False):
     stubs = tmp_path / "bin"
     stubs.mkdir(exist_ok=True)
 
@@ -198,7 +220,9 @@ def _configure(tmp_path, env_text="", lspci="", dri=False, nvidia=False, toolkit
         DOCKER=(docker)
         source "{LIB_ENV}"
         configure_ai_service
+        {"configure_media_gpu" if media else ""}
         echo "CHOSEN=${{AI_VARIANT_CHOSEN:-}}"
+        echo "MEDIA=${{MEDIA_GPU_STATE:-}}"
     """)
     out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
@@ -214,6 +238,34 @@ def test_update_gives_the_ai_service_an_intel_gpu(tmp_path):
     assert env["COMPOSE_FILE"] == ("docker-compose.yml:docker-compose.macvlan.yml:docker-compose.ai.yml:"
                                    "docker-compose.ai.intel.yml")
     assert env["RENDER_GID"].isdigit()
+
+
+@needs_bash
+def test_update_connects_the_gpu_to_the_nvr_for_video_decoding(tmp_path):
+    env, out = _configure(tmp_path, "COMPOSE_FILE=docker-compose.yml:docker-compose.macvlan.yml\n",
+                          lspci="00:02.0 VGA compatible controller: Intel Corporation CoffeeLake-S GT2", dri=True,
+                          media=True)
+    assert env["COMPOSE_FILE"] == ("docker-compose.yml:docker-compose.macvlan.yml:docker-compose.ai.yml:"
+                                   "docker-compose.ai.intel.yml:docker-compose.gpu.yml")
+    assert "MEDIA=vaapi" in out and env["RENDER_GID"].isdigit()
+    # Run again (every update does): nothing doubles up.
+    (tmp_path / "again").mkdir()
+    env2, _ = _configure(tmp_path / "again", f"COMPOSE_FILE={env['COMPOSE_FILE']}\n", dri=True, media=True)
+    assert env2["COMPOSE_FILE"].count("docker-compose.gpu.yml") == 1
+    # AI off: the NVR still decodes on the GPU.
+    (tmp_path / "noai").mkdir()
+    env3, out3 = _configure(tmp_path / "noai", "AI_WORKER=off\n", dri=True, media=True)
+    assert env3["COMPOSE_FILE"] == "docker-compose.yml:docker-compose.gpu.yml" and "MEDIA=vaapi" in out3
+    # No GPU, or opted out: nothing connected.
+    (tmp_path / "none").mkdir()
+    env4, out4 = _configure(tmp_path / "none", media=True)
+    assert "gpu.yml" not in env4.get("COMPOSE_FILE", "") and "MEDIA=none" in out4
+    (tmp_path / "off").mkdir()
+    env5, out5 = _configure(tmp_path / "off", "MEDIA_GPU=off\n", dri=True, media=True)
+    assert "docker-compose.gpu.yml" not in env5.get("COMPOSE_FILE", "") and "MEDIA=off" in out5
+    (tmp_path / "nv").mkdir()
+    env6, _ = _configure(tmp_path / "nv", nvidia=True, toolkit=True, media=True)
+    assert env6["COMPOSE_FILE"].endswith("docker-compose.gpu.nvidia.yml")
 
 
 @needs_bash

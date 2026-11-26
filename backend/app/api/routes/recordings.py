@@ -107,14 +107,14 @@ async def export_clip_download(
     start: float,  # unix seconds (inclusive)
     end: float,  # unix seconds (exclusive)
     name: str | None = None,  # optional client-suggested filename (already tz-formatted)
-    h264: bool = False,  # re-encode to H.264 so the download plays in any browser
+    h264: bool = False,  # ignored: older apps ask for H.264; clips keep the camera's codec
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user_flexible),
 ):
     """Cut a single downloadable clip covering [start, end] for one camera. The
     NVR stitches and trims whatever 5-minute segments fall in that window into
-    one MP4. By default it's a plain stream copy (original full-quality codec,
-    fast); with h264=1 it re-encodes to H.264 so the clip plays in any browser.
+    one MP4: a plain stream copy, the camera's own full-quality H.264/H.265,
+    never converted.
     """
     if end <= start:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="end must be after start")
@@ -154,7 +154,7 @@ async def export_clip_download(
 
     out_path = os.path.join(workdir, "clip.mp4")
     try:
-        await export_clip(segs, out_path, encode_h264=h264)
+        await export_clip(segs, out_path)
     except RuntimeError as exc:
         _remove_tree(workdir)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Clip export failed: {exc}")
@@ -282,7 +282,7 @@ async def get_recording_video(
     request: Request,
     recording_id: int,
     download: bool = False,  # when true, force a Save-As download with a friendly name
-    transcode: str | None = None,  # "h264" -> convert HEVC for browsers that can't play it
+    transcode: str | None = None,  # ignored: older apps ask for H.264; recordings are served as recorded
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user_flexible),
 ):
@@ -292,32 +292,7 @@ async def get_recording_video(
     if not os.path.exists(recording.file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording file missing")
 
-    # On-demand H.265 -> H.264 for browsers (Firefox, many Chrome) that can't
-    # play HEVC. Transcoded once, cached, and served with Range support so it
-    # stays seekable. Only requested by the frontend when actually needed.
-    if transcode == "h264":
-        # If a pre-recorded H.264 sub-stream copy exists, serve it directly -
-        # instant and seekable, no transcode. Not for `download`, which should
-        # get full-quality H.264 from the main stream instead of the low-res sub.
-        if not download and recording.playback_path and os.path.exists(recording.playback_path):
-            return range_file_response(request, recording.playback_path)
-
-        from app.services.transcode_cache import get_or_transcode_h264
-
-        try:
-            out_path = await get_or_transcode_h264(recording_id, recording.file_path, request=request)
-        except RuntimeError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not transcode for playback: {exc}"
-            ) from exc
-        if download:
-            camera = await db.get(Camera, recording.camera_id)
-            ts = recording.started_at.strftime("%Y%m%d_%H%M%S") if recording.started_at else str(recording.id)
-            return FileResponse(
-                out_path, media_type="video/mp4", filename=_safe_filename(None, f"{camera.name if camera else 'camera'}_{ts}_h264")
-            )
-        return range_file_response(request, out_path)
-
+    # Always the camera's own H.264/H.265, never converted.
     if download:
         camera = await db.get(Camera, recording.camera_id)
         ts = recording.started_at.strftime("%Y%m%d_%H%M%S") if recording.started_at else str(recording.id)

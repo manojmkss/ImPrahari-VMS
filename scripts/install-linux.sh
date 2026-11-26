@@ -310,6 +310,11 @@ else
     on) log "Descriptions: can run on this machine (set them up in Settings -> AI -> Describe what's happening)." ;;
     too_small) log "Descriptions: not added here ($DESCRIBER_WHY) - use another PC with Ollama instead." ;;
   esac
+  configure_media_gpu
+  case "$MEDIA_GPU_STATE" in
+    vaapi|nvidia) log "Video decoding: GPU connected to the NVR (tested at startup)." ;;
+    *) log "Video decoding: on the CPU (no GPU found on this machine)." ;;
+  esac
 fi
 
 # Prefer the prebuilt multi-arch images from GHCR (a ~1-minute pull, no build).

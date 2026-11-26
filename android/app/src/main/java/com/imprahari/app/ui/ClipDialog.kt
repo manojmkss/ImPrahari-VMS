@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
@@ -46,7 +45,7 @@ fun ClipDialog(
     spans: List<List<Double>>,
     zone: ZoneId,
     onDismiss: () -> Unit,
-    onSave: (start: Double, end: Double, h264: Boolean) -> Unit,
+    onSave: (start: Double, end: Double) -> Unit,
 ) {
     val now = remember { System.currentTimeMillis() / 1000.0 }
     val initial = remember { ClipMath.defaultRange(moment(), now) }
@@ -54,7 +53,6 @@ fun ClipDialog(
     var end by remember { mutableDoubleStateOf(initial.second) }
     var spanIndex by remember { mutableIntStateOf(1) }
     var window by remember { mutableStateOf(ClipMath.window(start, end, ClipMath.SPANS[spanIndex], now)) }
-    var h264 by remember { mutableStateOf(false) }
 
     // Nudges and "Here" may move the clip outside the bar: the bar follows.
     fun set(s: Double, e: Double) {
@@ -132,20 +130,10 @@ fun ClipDialog(
                 if (warning != null) {
                     Text(warning, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                    Checkbox(checked = h264, onCheckedChange = { h264 = it })
-                    Column {
-                        Text("Plays on any phone (H.264)", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "Slower - the NVR converts it. Off: the camera's original, full quality.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
             }
         },
         confirmButton = {
-            TextButton(enabled = problem == null, onClick = { onSave(start, end, h264) }) { Text("Save") }
+            TextButton(enabled = problem == null, onClick = { onSave(start, end) }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

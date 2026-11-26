@@ -58,7 +58,7 @@ object ClipDownloads {
         if (_status.value !is Status.Working) _status.value = null
     }
 
-    fun start(app: ImPrahariApplication, cameraId: Int, cameraName: String, start: Double, end: Double, h264: Boolean) {
+    fun start(app: ImPrahariApplication, cameraId: Int, cameraName: String, start: Double, end: Double) {
         val name = ClipMath.fileName(cameraName, start, ZoneId.systemDefault())
         val id = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
         app.getSystemService(NotificationManager::class.java).createNotificationChannel(
@@ -68,7 +68,7 @@ object ClipDownloads {
             report(app, id, Status.Working(name, null))
             val result = try {
                 val uri = withContext(Dispatchers.IO) {
-                    app.api.exportClip(cameraId, start, end, h264).use { r ->
+                    app.api.exportClip(cameraId, start, end).use { r ->
                         val body = r.body ?: throw IOException("The NVR sent an empty clip")
                         val total = body.contentLength().takeIf { it > 0 }
                         var shown = 0L

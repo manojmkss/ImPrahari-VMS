@@ -204,6 +204,13 @@ else
     on) log "Descriptions: can run on this machine (set them up in Settings -> AI -> Describe what's happening)." ;;
     too_small) log "Descriptions: not added here ($DESCRIBER_WHY) - use another PC with Ollama instead." ;;
   esac
+  configure_media_gpu
+  case "$MEDIA_GPU_STATE" in
+    vaapi) log "Video decoding: GPU connected to the NVR (tested at startup - Settings -> System -> Media processing)." ;;
+    nvidia) log "Video decoding: NVIDIA GPU connected to the NVR." ;;
+    off) log "Video decoding: on the CPU (MEDIA_GPU=off in .env)." ;;
+    *) log "Video decoding: on the CPU (no GPU found on this machine)." ;;
+  esac
 fi
 
 # ---------------------------------------------------------------------------

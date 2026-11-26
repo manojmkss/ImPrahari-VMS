@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authenticatedEndpoints, type PlaybackAnswer } from "../api/liveEndpoints";
-import { recordingNeedsTranscode } from "../api/recordings";
 import { useSettings } from "../context/SettingsContext";
 
 const LEAD_IN_MS = 3000; // start a little before the moment, to see them arrive
@@ -61,7 +60,7 @@ export function PlaybackPopup({ cameraId, cameraName, at, title, onClose }: Prop
       }
       const url =
         a.kind === "recording"
-          ? authenticatedEndpoints.recordingVideoUrl(a.recording_id!, recordingNeedsTranscode({ codec: a.codec }))
+          ? authenticatedEndpoints.recordingVideoUrl(a.recording_id!)
           : authenticatedEndpoints.snapshotVideoUrl(cameraId, a.snapshot!);
       const origin = a.origin * 1000;
       seekTo.current = Math.max(0, (Math.min(ts, a.end * 1000 - 1500) - origin) / 1000);

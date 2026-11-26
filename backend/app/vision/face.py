@@ -59,10 +59,30 @@ def _frontalness(lm: np.ndarray) -> float:
 
 
 class FaceEngine:
-    def __init__(self, yunet_path: str, sface_path: str, score_threshold: float = DETECT_SCORE) -> None:
+    """`gpu`: run both models on the GPU through OpenCV's OpenCL target (the
+    AI service passes it when its engine runs on a GPU). Proven with a test
+    face search first; the CPU otherwise - `self.device` says which."""
+
+    def __init__(self, yunet_path: str, sface_path: str, score_threshold: float = DETECT_SCORE,
+                 gpu: bool = False) -> None:
+        self._lock = threading.Lock()  # OpenCV dnn objects aren't thread-safe
+        self.device = "cpu"
+        if gpu and cv2.ocl.haveOpenCL():
+            try:
+                cv2.ocl.setUseOpenCL(True)
+                target = cv2.dnn.DNN_TARGET_OPENCL
+                self._det = cv2.FaceDetectorYN.create(yunet_path, "", (320, 320), score_threshold, 0.3, 5000,
+                                                      cv2.dnn.DNN_BACKEND_OPENCV, target)
+                self._rec = cv2.FaceRecognizerSF.create(sface_path, "", cv2.dnn.DNN_BACKEND_OPENCV, target)
+                probe = np.zeros((160, 160, 3), np.uint8)
+                self._detect_in(probe)
+                self._rec.feature(np.zeros((112, 112, 3), np.uint8))
+                self.device = "gpu"
+                return
+            except cv2.error:
+                pass
         self._det = cv2.FaceDetectorYN.create(yunet_path, "", (320, 320), score_threshold, 0.3, 5000)
         self._rec = cv2.FaceRecognizerSF.create(sface_path, "")
-        self._lock = threading.Lock()  # OpenCV dnn objects aren't thread-safe
 
     def _detect_in(self, img: np.ndarray) -> np.ndarray:
         h, w = img.shape[:2]

@@ -48,18 +48,11 @@ export const browserPlaysHevc: boolean = (() => {
   }
 })();
 
-/** Recordings are played as recorded - H.265 included, which every current
- *  phone and browser decodes - never converted on the NVR for playback (the
- *  export's "H.264" option still converts, for sharing a file). */
-export function recordingNeedsTranscode(_rec: { codec?: string | null }): boolean {
-  return false;
-}
-
-/** Playback URL for a recording: the raw file when the browser can play it, or
- *  the on-demand H.264 transcode when it can't (H.265 on Firefox/Chrome). */
-export function recordingPlaybackUrl(rec: { id: number; codec?: string | null }): string {
-  const suffix = recordingNeedsTranscode(rec) ? "?transcode=h264" : "";
-  return buildMediaUrl(`/recordings/${rec.id}/video${suffix}`);
+/** Playback URL for a recording: always the file as recorded - H.265
+ *  included, which every current phone and browser decodes. The NVR never
+ *  converts video. */
+export function recordingPlaybackUrl(rec: { id: number }): string {
+  return buildMediaUrl(`/recordings/${rec.id}/video`);
 }
 
 /** Poster frame for a recording (generated when the segment was registered). */
@@ -88,9 +81,8 @@ export async function downloadClip(opts: {
   startTs: number;
   endTs: number;
   name: string;
-  h264?: boolean;
 }): Promise<void> {
-  const url = clipExportUrl(opts.cameraId, opts.startTs, opts.endTs, opts.name, opts.h264);
+  const url = clipExportUrl(opts.cameraId, opts.startTs, opts.endTs, opts.name);
   const res = await fetch(url);
   if (!res.ok) {
     let detail = `Export failed (HTTP ${res.status})`;
@@ -123,16 +115,14 @@ export function bulkDownloadZipUrl(ids: number[]): string {
 }
 
 /** Direct-download URL for a stitched clip covering [startTs, endTs] (Unix
- *  seconds) for one camera. `name` is a client-suggested filename. By default
- *  the export is a full-quality stream copy (original codec); pass h264=true to
- *  re-encode to H.264 so the downloaded file plays in any browser. */
-export function clipExportUrl(cameraId: number, startTs: number, endTs: number, name?: string, h264 = false): string {
+ *  seconds) for one camera. `name` is a client-suggested filename. The clip is
+ *  a full-quality stream copy in the camera's own codec. */
+export function clipExportUrl(cameraId: number, startTs: number, endTs: number, name?: string): string {
   const params = new URLSearchParams({
     camera_id: String(cameraId),
     start: String(startTs),
     end: String(endTs),
   });
   if (name) params.set("name", name);
-  if (h264) params.set("h264", "1");
   return buildMediaUrl(`/recordings/export?${params.toString()}`);
 }

@@ -63,9 +63,8 @@ class ClipMathTest {
     @Test
     fun `export address uses plain decimals`() {
         assertEquals(
-            "/api/recordings/export?camera_id=3&start=1763465000.000&end=1763465060.500&h264=true",
-            ClipMath.exportPath(3, now, now + 60.5, true),
+            "/api/recordings/export?camera_id=3&start=1763465000.000&end=1763465060.500",
+            ClipMath.exportPath(3, now, now + 60.5),
         )
-        assertTrue(!ClipMath.exportPath(3, now, now + 1, false).contains("h264"))
     }
 }

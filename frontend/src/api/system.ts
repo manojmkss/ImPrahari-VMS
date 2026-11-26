@@ -61,18 +61,44 @@ export function getSystemTime(): Promise<{ server_utc: string; server_timestamp:
   return apiFetch<{ server_utc: string; server_timestamp: number }>("/system/time");
 }
 
-export function getSystemSettings(): Promise<{ timezone: string; ntp_server: string }> {
-  return apiFetch<{ timezone: string; ntp_server: string }>("/system/settings");
+export interface SystemSettingsData {
+  timezone: string;
+  ntp_server: string;
+  media_gpu_only: boolean;
 }
 
-export function updateSystemSettings(payload: {
-  timezone?: string;
-  ntp_server?: string;
-}): Promise<{ timezone: string; ntp_server: string }> {
-  return apiFetch<{ timezone: string; ntp_server: string }>("/system/settings", {
+export function getSystemSettings(): Promise<SystemSettingsData> {
+  return apiFetch<SystemSettingsData>("/system/settings");
+}
+
+export function updateSystemSettings(payload: Partial<SystemSettingsData>): Promise<SystemSettingsData> {
+  return apiFetch<SystemSettingsData>("/system/settings", {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+/** What decodes the video (the GPU found and proven, or why it's the CPU),
+ *  and where the AI models run. */
+export interface MediaProcessing {
+  video: {
+    kind: "vaapi" | "cuda" | "cpu";
+    device: string | null;
+    name: string;
+    codecs: string[];
+    reason: string;
+    tried: { device: string; name: string; ok: boolean; error?: string }[];
+    state: "gpu" | "cpu" | "paused";
+    gpu_only: boolean;
+    broken: boolean;
+    broken_reason: string;
+  };
+  ai: { choice: string; active: string; note: string; devices?: { id: string; name: string; available: boolean }[] } | null;
+  ai_error: string | null;
+}
+
+export function getMediaProcessing(): Promise<MediaProcessing> {
+  return apiFetch<MediaProcessing>("/system/media-processing");
 }
 
 export interface NtpPushResult {

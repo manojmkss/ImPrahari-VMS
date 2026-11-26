@@ -3,9 +3,8 @@ import { useEffect, useState } from "react";
 /**
  * True while the tab/page is visible. Lets components drop expensive work when
  * the user switches away - e.g. the playback rows tear down their <video>
- * elements when hidden, which aborts the in-flight transcode requests (and the
- * server kills the ffmpeg behind them) instead of transcoding a page nobody is
- * looking at.
+ * elements when hidden, which stops their downloads instead of streaming
+ * video to a page nobody is looking at.
  */
 export function usePageVisible(): boolean {
   const [visible, setVisible] = useState(() =>

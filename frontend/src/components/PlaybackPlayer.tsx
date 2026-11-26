@@ -32,8 +32,8 @@ interface Props {
 
 /**
  * The single, large playback video for the currently-focused camera. It's the
- * only <video> the page mounts, so only one camera is ever transcoded at a time
- * - the other cameras contribute just their (cheap) coverage timelines. Its
+ * only <video> the page mounts, so only one camera's video is ever loaded at a
+ * time - the other cameras contribute just their (cheap) coverage timelines. Its
  * real position drives the shared cursor (it's always the transport clock), so
  * every timeline tracks what this player is actually showing.
  */
@@ -149,8 +149,8 @@ export function PlaybackPlayer({
         muted
         playsInline
         className="pb-player-video"
-        // Drop the source while the tab is hidden so the transcode request is
-        // aborted (server kills its ffmpeg) instead of churning on a hidden tab.
+        // Drop the source while the tab is hidden so the download stops
+        // instead of streaming to a hidden tab.
         src={activeRec && pageVisible ? recordingPlaybackUrl(activeRec) : undefined}
         onLoadedMetadata={() => {
           const v = videoRef.current;

@@ -150,7 +150,6 @@ export function PlaybackPage() {
   // Clip export markers (epoch ms) + export state.
   const [clipIn, setClipIn] = useState<number | null>(null);
   const [clipOut, setClipOut] = useState<number | null>(null);
-  const [exportH264, setExportH264] = useState(false);
   const [exportingId, setExportingId] = useState<number | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -419,7 +418,6 @@ export function PlaybackPage() {
         startTs: Math.floor(clipIn! / 1000),
         endTs: Math.floor(clipOut! / 1000),
         name: filename,
-        h264: exportH264,
       });
       setNotice({ kind: "ok", text: `Exported ${cam.name} · ${fmtDur(clipSeconds)}` });
     } catch (err) {
@@ -635,14 +633,6 @@ export function PlaybackPage() {
 
               {/* Export + snapshot */}
               <div className="pb-bar-grp pb-bar-end">
-                <span className="pb-fmt" title="H.264 re-encodes so the download plays in any browser; original is a faster stream-copy in the camera's codec">
-                  <button className={`btn btn-sm ${!exportH264 ? "btn-primary" : ""}`} onClick={() => setExportH264(false)}>
-                    Original
-                  </button>
-                  <button className={`btn btn-sm ${exportH264 ? "btn-primary" : ""}`} onClick={() => setExportH264(true)}>
-                    H.264
-                  </button>
-                </span>
                 <button className="btn btn-sm" onClick={takeSnapshot} title="Save the current frame as a PNG">
                   📷 Snapshot
                 </button>

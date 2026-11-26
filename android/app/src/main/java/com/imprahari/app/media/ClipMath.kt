@@ -65,9 +65,9 @@ object ClipMath {
         return "${safe.ifEmpty { "Camera" }} $time.mp4"
     }
 
-    /** The NVR's export address (GET /api/recordings/export). */
-    fun exportPath(cameraId: Int, start: Double, end: Double, h264: Boolean): String =
+    /** The NVR's export address (GET /api/recordings/export). The clip is the
+     *  camera's own H.264/H.265 at full quality: the NVR never converts. */
+    fun exportPath(cameraId: Int, start: Double, end: Double): String =
         "/api/recordings/export?camera_id=$cameraId" +
-            "&start=${"%.3f".format(Locale.ROOT, start)}&end=${"%.3f".format(Locale.ROOT, end)}" +
-            if (h264) "&h264=true" else ""
+            "&start=${"%.3f".format(Locale.ROOT, start)}&end=${"%.3f".format(Locale.ROOT, end)}"
 }

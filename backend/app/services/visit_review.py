@@ -1,13 +1,14 @@
 """The visit review: once a visit is over and the system is quiet, the AI goes
-over the visit's main-stream recording at 10 frames a second and finishes the
-visit properly.
+over the visit's main-stream recording and finishes the visit properly.
 
-Live checks (every 500 ms, on the sub stream until a person is confirmed)
-are tuned for instant alerts and miss the moment a face turns to the camera.
-Nothing here is in a hurry, so it:
-- reads the recording at 10 frames/s where the live check saw a person or a
-  vehicle (and 2 frames/s over the rest of the visit, to catch anyone the
-  live check missed), at the main stream's full resolution;
+Live checks run on the sub stream until a person is confirmed, and miss the
+moment a face turns to the camera. Nothing here is in a hurry, so it:
+- reads the recording at the same rate as the live checks ("Check the
+  picture every" in Settings -> AI: 500 ms = 2 pictures a second), at the
+  main stream's full resolution, decoded and scaled on the GPU
+  (services/gpu_video.py);
+- never takes more than about half the machine: after each picture it rests
+  as long as the picture took (DUTY);
 - follows everyone with the same tracker as live, and searches faces on the
   full-resolution frames - so it names the people it knows, and tells a
   stranger (a clear face that matches nobody) from someone whose face never
@@ -23,7 +24,6 @@ A live event with someone in view pauses it (live checks come first); after
 import asyncio
 import logging
 import os
-import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -55,10 +55,13 @@ from app.services.motion_event import (
 
 logger = logging.getLogger(__name__)
 
-FOCUS_FPS = 10.0  # where someone was seen: a look every 100 ms
-SCAN_FPS = 2.0  # the rest of the visit, for anyone the live check missed
-FOCUS_PAD = 5.0  # seconds either side of a live sighting read at FOCUS_FPS
-SHORT_VISIT = 120.0  # a visit this short is read at FOCUS_FPS throughout
+DEFAULT_FPS = 2.0  # "Check the picture every 500 ms"
+MIN_FPS, MAX_FPS = 0.2, 4.0
+SCAN_FPS = 2.0  # at most, over the parts of the visit where the live check saw nobody
+FOCUS_PAD = 5.0  # seconds either side of a live sighting read at the full rate
+SHORT_VISIT = 120.0  # a visit this short is read at the full rate throughout
+DUTY = 0.5  # share of the time the review may be working (it rests the rest)
+BACKLOG_AGE = 3 * 3600  # a visit still unreviewed this long after it ended is left as it is
 EDGE_PAD = 3.0  # before and after the visit (the pre-roll)
 MAX_SECONDS_PER_CAMERA = 15 * 60
 MAX_WIDTH = 2688  # 4MP; anything bigger is decoded at this width
@@ -68,17 +71,28 @@ FACE_MAX_TRIES = 60
 QUIET_LOAD = 0.7  # load average per core below which the system counts as quiet
 MAX_WAIT_FOR_QUIET = 30 * 60
 FOOTAGE_WAIT = 20 * 60  # the last minutes may still be in a segment being written
-TOO_OLD = 24 * 3600
 POLL_SECONDS = 30
 PHOTO_DIR = "visits"
 FOCUS_GROUPS = ("person", "vehicle", "two_wheeler")
 SUMMARY_TYPES = ("motion_summary", "incident_summary")
 
 
+def review_fps(settings) -> float:
+    """Pictures a second: the live checks' own rate (Settings -> AI ->
+    "Check the picture every")."""
+    ms = getattr(settings, "monitor_interval_ms", None) or 500
+    return max(MIN_FPS, min(MAX_FPS, 1000.0 / ms))
+
+
 class ReviewTracker(ObjectTracker):
-    # Ten looks a second instead of two: a stray box twice in a row is no
-    # evidence, so a track needs more sightings before it counts.
-    CONFIRM_HITS = 4
+    """The live tracker; at a faster check rate than the usual 2 a second a
+    stray box twice in a row is no evidence, so a track needs more
+    sightings before it counts."""
+
+    def __init__(self, *args, fps: float = DEFAULT_FPS, **kwargs):
+        super().__init__(*args, **kwargs)
+        if fps > 2.5:
+            self.CONFIRM_HITS = 4
 
 
 @dataclass
@@ -119,24 +133,28 @@ def _merge(spans: list[tuple[float, float]]) -> list[tuple[float, float]]:
     return [(a, b) for a, b in out]
 
 
-def plan_rates(window: tuple[float, float], focus: list[tuple[float, float]]) -> list[tuple[float, float, float]]:
-    """(start, end, fps) stretches covering the window: FOCUS_FPS around the
-    live sightings, SCAN_FPS elsewhere; capped at MAX_SECONDS_PER_CAMERA
-    (the 10 fps stretches are kept first)."""
+def plan_rates(window: tuple[float, float], focus: list[tuple[float, float]],
+               fps: float = DEFAULT_FPS) -> list[tuple[float, float, float]]:
+    """(start, end, fps) stretches covering the window: `fps` (the live
+    checks' rate) around the live sightings, at most SCAN_FPS elsewhere;
+    capped at MAX_SECONDS_PER_CAMERA (the sighting stretches are kept
+    first)."""
     ws, we = window
+    scan = min(fps, SCAN_FPS)
     if we - ws <= SHORT_VISIT:
-        return [(ws, we, FOCUS_FPS)]
+        return [(ws, we, fps)]
     focus = _merge([(max(ws, a - FOCUS_PAD), min(we, b + FOCUS_PAD)) for a, b in focus if b >= ws and a <= we])
     out, at = [], ws
     for a, b in focus:
         if a > at:
-            out.append((at, a, SCAN_FPS))
-        out.append((a, b, FOCUS_FPS))
+            out.append((at, a, scan))
+        out.append((a, b, fps))
         at = b
     if at < we:
-        out.append((at, we, SCAN_FPS))
+        out.append((at, we, scan))
     if sum(b - a for a, b, _ in out) > MAX_SECONDS_PER_CAMERA:
-        out = [s for s in out if s[2] == FOCUS_FPS]
+        sightings = set(focus)
+        out = [s for s in out if (s[0], s[1]) in sightings] or out
         kept, total = [], 0.0
         for a, b, fps in out:
             if total >= MAX_SECONDS_PER_CAMERA:
@@ -181,9 +199,18 @@ async def _probe_size(path: str) -> tuple[int, int] | None:
         return None
 
 
-async def read_frames(piece: Piece):
+class ReviewPaused(Exception):
+    """"GPU only" and the GPU isn't working: the review waits for it."""
+
+
+async def read_frames(piece: Piece, codec: str | None = None):
     """Frames of one piece, as (wall time, BGR frame), at its rate and the
-    main stream's own resolution (up to MAX_WIDTH)."""
+    main stream's own resolution (up to MAX_WIDTH), decoded and scaled on
+    the GPU when there is one. If the GPU fails part-way the rest of the
+    piece is read with whatever the NVR uses now (the CPU, unless "GPU
+    only" - then ReviewPaused)."""
+    from app.services.gpu_video import FrameReader
+
     size = await _probe_size(piece.path)
     if size is None:
         return
@@ -191,25 +218,29 @@ async def read_frames(piece: Piece):
     if w > MAX_WIDTH:
         w, h = MAX_WIDTH, int(h * MAX_WIDTH / w)
     w, h = w - w % 2, h - h % 2
-    nice = ["nice", "-n", "10"] if shutil.which("nice") else []
-    proc = await asyncio.create_subprocess_exec(
-        *nice, "ffmpeg", "-hide_banner", "-loglevel", "error", "-threads", "2",
-        "-ss", f"{piece.inpoint:.3f}", "-i", piece.path, "-t", f"{piece.duration:.3f}",
-        "-vf", f"fps={piece.fps},scale={w}:{h}", "-an", "-f", "rawvideo", "-pix_fmt", "bgr24", "pipe:1",
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
-    n = 0
-    try:
-        while True:
-            try:
-                buf = await proc.stdout.readexactly(w * h * 3)
-            except asyncio.IncompleteReadError:
-                break
-            yield piece.wall + n / piece.fps, np.frombuffer(buf, np.uint8).reshape(h, w, 3)
-            n += 1
-    finally:
-        if proc.returncode is None:
-            proc.kill()
-        await proc.wait()
+    n, tries = 0, 0
+    expected = max(1, int(piece.duration * piece.fps) - 1)
+    while n < expected and tries < 2:
+        tries += 1
+        offset = n / piece.fps
+        reader = FrameReader(piece.path, fps=piece.fps, width=w, height=h, start=piece.inpoint + offset,
+                             duration=piece.duration - offset, threads=2, codec=codec)
+        if reader.paused:
+            raise ReviewPaused()
+        try:
+            if not await asyncio.to_thread(reader.isOpened):
+                logger.warning("Visit review: can't read %s (%s)", piece.path, reader.error[:200])
+                continue
+            while True:
+                ok, frame = await asyncio.to_thread(reader.read)
+                if not ok:
+                    break
+                yield piece.wall + n / piece.fps, frame
+                n += 1
+            if not reader.error:
+                return  # the end of the piece
+        finally:
+            await asyncio.to_thread(reader.release)
 
 
 # ── when to run ─────────────────────────────────────────────────────────────
@@ -257,15 +288,18 @@ async def review_camera(settings, camera: Camera, pieces: list[Piece], targets: 
 
     zones = camera.motion_zones
     tracker = ReviewTracker(in_zone=lambda x, y: point_in_watch_area(zones, x, y),
-                            rules=[z for z in (zones or []) if z.get("kind") in ("zone", "line")])
+                            rules=[z for z in (zones or []) if z.get("kind") in ("zone", "line")],
+                            fps=review_fps(settings))
     res = CameraResult(camera.id, tracker)
     high = (getattr(settings, "detection_confidence", 50) or 50) / 100.0
     faces_on = faces_enabled(settings)
     thr = threshold_for(settings) if faces_on else 1.0
     failures = 0
+    codec = getattr(camera, "codec", None)
     for piece in pieces:
-        async for wall, frame in read_frames(piece):
+        async for wall, frame in read_frames(piece, codec):
             await _yield_to_live(deadline)
+            began = time.monotonic()
             res.frames += 1
             h, w = frame.shape[:2]
             small = cv2.resize(frame, (DETECT_WIDTH, int(h * DETECT_WIDTH / w)),
@@ -300,6 +334,9 @@ async def review_camera(settings, camera: Camera, pieces: list[Piece], targets: 
                 if d < 2.0 and d < res.event_shots.get(eid, (9e9, None))[0]:
                     boxes = [(o.label, o.confidence, (o.x, o.y, o.w, o.h)) for o in objects if o.confidence >= high]
                     res.event_shots[eid] = (d, await asyncio.to_thread(lambda: _jpeg(draw_boxes(frame, boxes))))
+            # Never more than DUTY of the machine: rest as long as this took.
+            took = time.monotonic() - began
+            await asyncio.sleep(took * (1.0 / DUTY - 1.0))
     for t in tracker.tracks:
         if t.left_at is None:
             t.left_at = t.last_seen
@@ -530,7 +567,7 @@ async def review_visit(incident_id: int, deadline: float | None = None) -> dict:
             recs, _ = await _footage(db, cid, window)
             focus = [(_ts(d.first_seen or d.created_at), _ts(d.last_seen or d.created_at)) for d in dets
                      if d.camera_id == cid and group_of(d.label) in FOCUS_GROUPS]
-            pieces = pieces_for(recs, plan_rates(window, focus))
+            pieces = pieces_for(recs, plan_rates(window, focus, review_fps(settings)))
             # Alerts show the moment they were sent; a summary shows the
             # clearest view of the event (below, from the review's tracks).
             targets = {e.id: _ts(e.created_at) for e in events
@@ -765,19 +802,28 @@ async def _pending() -> list[Incident]:
 async def review_once() -> int | None:
     """Review the oldest visit that's ready, if the system is quiet (or it
     has waited long enough). Returns the visit reviewed."""
+    from app.services.gpu_video import gpu_video
+
     now = time.time()
     for row in await _pending():
         ended = _ts(row.ended_at) or _ts(row.started_at) or now
-        if now - ended > TOO_OLD:
-            await _finish(row.id, "skipped", send=False)  # days old: not worth a message now
+        if now - ended > BACKLOG_AGE:
+            # Fallen this far behind (a busy day, the GPU away): the visit
+            # keeps its live pictures and summary; catching up hours late
+            # would only keep the machine busy for messages nobody needs now.
+            await _finish(row.id, "skipped", send=False)
             continue
         if not await ready(row):
             continue
+        if await asyncio.to_thread(gpu_video.plan) is None:
+            return None  # "GPU only" and the GPU is away: wait for it
         waited = now - ended
         if not system_quiet() and waited < MAX_WAIT_FOR_QUIET:
             return None  # oldest first: wait for quiet rather than jump the queue
         try:
             await review_visit(row.id, deadline=ended + MAX_WAIT_FOR_QUIET)
+        except ReviewPaused:
+            return None  # the GPU went away part-way: the visit is reviewed when it's back
         except Exception as exc:
             logger.exception("Visit review %s failed", row.id)
             await _finish(row.id, "failed")

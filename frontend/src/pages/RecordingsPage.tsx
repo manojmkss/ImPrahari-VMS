@@ -6,7 +6,6 @@ import {
   deleteRecording,
   listRecordings,
   recordingDownloadUrl,
-  recordingNeedsTranscode,
   recordingPlaybackUrl,
 } from "../api/recordings";
 import { listCameras } from "../api/cameras";
@@ -375,11 +374,6 @@ export function RecordingsPage() {
                 ×
               </button>
             </div>
-            {recordingNeedsTranscode(playing) && (
-              <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "0 0 6px" }}>
-                H.265 clip — converting to H.264 for your browser (first play may take a moment)…
-              </p>
-            )}
             <video
               controls
               autoPlay
@@ -448,7 +442,6 @@ function TilesView({
               {rec.trigger}
               {rec.codec && (
                 <span
-                  title={recordingNeedsTranscode(rec) ? "Will be converted to H.264 for playback in this browser" : undefined}
                   style={{
                     marginLeft: 6,
                     padding: "0 5px",
@@ -613,11 +606,6 @@ function PreviewView({
               poster={active.thumbnail_path ? buildMediaUrl(`/recordings/${active.id}/thumbnail.jpg`) : undefined}
               src={recordingPlaybackUrl(active)}
             />
-            {recordingNeedsTranscode(active) && (
-              <p style={{ fontSize: 12, color: "var(--text-dim)", margin: "4px 0 0" }}>
-                Converting H.265 → H.264 for your browser…
-              </p>
-            )}
             <div className="rec-preview-info">
               <h3>{cameraName(active.camera_id)}</h3>
               <div className="rec-kv">

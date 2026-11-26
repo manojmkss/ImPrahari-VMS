@@ -373,11 +373,11 @@ class ApiClient(private val store: SessionStore) {
 
     /**
      * A clip of [cameraId] from [start] to [end] (unix s), trimmed and stitched
-     * by the NVR. [h264] re-encodes it so any player opens it (slower). The
-     * caller reads the body and closes the response.
+     * by the NVR, in the camera's own codec at full quality. The caller reads
+     * the body and closes the response.
      */
-    suspend fun exportClip(cameraId: Int, start: Double, end: Double, h264: Boolean): Response {
-        val r = authed(ClipMath.exportPath(cameraId, start, end, h264), client = slowHttp)
+    suspend fun exportClip(cameraId: Int, start: Double, end: Double): Response {
+        val r = authed(ClipMath.exportPath(cameraId, start, end), client = slowHttp)
         if (r.isSuccessful) return r
         val detail = withContext(Dispatchers.IO) {
             r.use { runCatching { json.decodeFromString<ErrorDetail>(it.body?.string().orEmpty()).detail }.getOrNull() }

@@ -1,0 +1,15 @@
+# GPU video decoding for the NVR itself on an NVIDIA GPU (NVDEC through
+# ffmpeg's CUDA support - backend/app/services/gpu_video.py). Written into
+# COMPOSE_FILE by the install/update scripts when the host has an NVIDIA GPU
+# with NVIDIA's driver and Container Toolkit.
+services:
+  backend:
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: "compute,video,utility"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video]
